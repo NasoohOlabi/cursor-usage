@@ -1,0 +1,283 @@
+rewrite the site to start with a drop box I'll drop a .csv file with this headers and it should uploaded to ./data folder and then perfrom all kinds of statistics and charts on it
+token centric
+money centric
+usage centric
+timeseries
+Implement the plan as specified, it is attached for your reference. Do NOT edit the plan file itself.
+
+To-do's from the plan have already been created. Do not create them again. Mark them as in_progress as you work, starting with the first one. Don't stop until you have completed all the to-dos.
+Something went wrong!
+Hide Error
+(0 , __vite_ssr_import_1__.createServerFn)(...).validator is not a function
+Something went wrong!
+Hide Error
+row.Date.split is not a function
+remove distribution by user 
+
+add a chart to show me how much I pay on every model
+lines are too think it's unreadable
+add chart model price pre token 
+add chart averge model output tokens to see if a model talks alot 😅
+flip the bar charts to vertical bars
+change cost by model and price per 1M tokens to tables
+
+add chart average model prompt cost  
+merge the first five tabes and charts into one sortable table with all the columns and values add add at the top summary of the most and least of every column for example most expensive price per 1M tokens and least expensive Price per 1M tokens
+For the code present, we get this error:
+```
+Argument of type '() => Promise<unknown[] | null>' is not assignable to parameter of type 'ServerFn<Register, "GET", undefined, undefined, Promise<unknown[] | null>>'.
+  Type 'Promise<unknown[] | null>' is not assignable to type 'Promise<{}[] | null>'.
+    Type 'unknown[] | null' is not assignable to type '{}[] | null'.
+      Type 'unknown[]' is not assignable to type '{}[]'.
+        Type 'unknown' is not assignable to type '{}'.
+```
+Fix it, verify, and then give a concise explanation. @src/routes/index.tsx:52-55 
+
+      "  const [uploadStatus, setUploadStatus] = useState<'idle' | 'success' | 'error'>(\n" +
+      "    'idle',\n" +
+      '  )\n' +
+      '  const [sortConfig, setSortConfig] = useState<{\n' +
+      '    key: string\n' +
+      "    direction: 'asc' | 'desc'\n" +
+      "  }>({ key: 'cost', direction: 'desc' })\n" +
+      '\n' +
+      '  const onFileUpload = useCallback(\n' +
+      '    async (e: React.ChangeEvent<HTMLInputElement>) => {\n' +
+      '      const file = e.target.files?.[0]\n' +
+      '      if (!file) return\n' +
+      '\n' +
+      '      setIsUploading(true)\n' +
+      "      setUploadStatus('idle')\n" +
+      '\n' +
+      '      try {\n' +
+      '        const formData = new FormData()\n' +
+      "        formData.append('file', file)\n" +
+      '        await uploadCsv({ data: formData })\n' +
+      "        setUploadStatus('success')\n" +
+      '        router.invalidate()\n' +
+      '      } catch (error) {\n' +
+      "        console.error('Upload failed:', error)\n" +
+      "        setUploadStatus('error')\n" +
+      '      } finally {\n' +
+      '        setIsUploading(false)\n' +
+      '      }\n' +
+      '    },\n' +
+      '    [router],\n' +
+      '  )\n' +
+      '\n' +
+      '  // Data Processing\n' +
+      '  const processedData = useMemo(() => {\n' +
+      '    if (!data || !Array.isArray(data)) return null\n' +
+      '\n' +
+      '    // Filter out rows that might be empty or malformed\n' +
+      '    const validData = data.filter((row) => row.Date && row.Model)\n' +
+      '\n' +
+      '    // 1. Token & Cost by Model\n' +
+      '    const modelData = Object.values(\n' +
+      '      validData.reduce((acc: any, row) => {\n' +
+      "        const model = row.Model || 'Unknown'\n" +
+      '        if (!acc[model]) acc[model] = { name: model, input: 0, output: 0, total: 0, cost: 0, count: 0 }\n' +
+      "        acc[model].input += Number(row['Input (w/o Cache Write)']) || 0\n" +
+      "        acc[model].output += Number(row['Output Tokens']) || 0\n" +
+      "        acc[model].total += Number(row['Total Tokens']) || 0\n" +
+      "        acc[model].cost += Number(row['Cost']) || 0\n" +
+      '        acc[model].count += 1\n' +
+      '        return acc\n' +
+      '      }, {}),\n' +
+      '    ).map((m: any) => ({\n' +
+      '      ...m,\n' +
+      '      pricePer1MTokens: m.total > 0 ? (m.cost / m.total) * 1000000 : 0,\n' +
+      '      avgOutputTokens: m.count > 0 ? m.output / m.count : 0,\n' +
+      '      avgPromptCost: m.count > 0 ? m.cost / m.count : 0\n' +
+      '    })).sort((a: any, b: any) => b.cost - a.cost)\n' +
+      '\n' +
+      '    // 2. Usage Centric (by Kind)\n' +
+      '    const usageByKind = Object.values(\n' +
+      '      validData.reduce((acc: any, row) => {\n' +
+      "        const kind = row.Kind || 'Unknown'\n" +
+      '        if (!acc[kind]) acc[kind] = { name: kind, value: 0 }\n' +
+      '        acc[kind].value += 1\n' +
+      '        return acc\n' +
+      '      }, {}),\n' +
+      '    )\n' +
+      '\n' +
+      '    // 3. Timeseries (Daily Cost & Tokens)\n' +
+      '    const timeseries = Object.values(\n' +
+      '      validData.reduce((acc: any, row) => {\n' +
+      '        const dateStr = row.Date instanceof Date \n' +
+      "          ? row.Date.toISOString().split('T')[0] \n" +
+      "          : String(row.Date).split('T')[0]\n" +
+      "        const date = dateStr || 'Unknown'\n" +
+      '        if (!acc[date]) acc[date] = { name: date, cost: 0, tokens: 0 }\n' +
+      '        acc[date].cost += Number(row.Cost) || 0\n' +
+      "        acc[date].tokens += Number(row['Total Tokens']) || 0\n" +
+      '        return acc\n' +
+      '      }, {}),\n' +
+      '    ).sort((a: any, b: any) => a.name.localeCompare(b.name))\n' +
+      '\n' +
+      '    return { modelData, usageByKind, timeseries }\n' +
+      '  }, [data])\n' +
+      '\n' +
+      '  const sortedModelData = useMemo(() => {\n' +
+      '    if (!processedData?.modelData) return []\n' +
+      '    return [...processedData.modelData].sort((a, b) => {\n' +
+      '      const aValue = a[sortConfig.key]\n' +
+      '      const bValue = b[sortConfig.key]\n' +
+      "      if (aValue < bValue) return sortConfig.direction === 'asc' ? -1 : 1\n" +
+      "      if (aValue > bValue) return sortConfig.direction === 'asc' ? 1 : -1\n" +
+      '      return 0\n' +
+      '    })\n' +
+      '  }, [processedData?.modelData, sortConfig])\n' +
+      '\n' +
+      '  const summaryData = useMemo(() => {\n' +
+      '    if (!processedData?.modelData || processedData.modelData.length === 0) return null\n' +
+      '\n' +
+      '    const metrics = [\n' +
+      "      { key: 'cost', label: 'Cost', unit: '$', format: (v: number) => `$${v.toFixed(4)}` },\n" +
+      "      { key: 'pricePer1MTokens', label: 'Price/1M Tokens', unit: '$', format: (v: number) => `$${v.toFixed(2)}` },\n" +
+      "      { key: 'avgOutputTokens', label: 'Avg Output Tokens', unit: '', format: (v: number) => v.toFixed(0) },\n" +
+      "      { key: 'avgPromptCost', label: 'Avg Prompt Cost', unit: '$', format: (v: number) => `$${v.toFixed(4)}` },\n" +
+      "      { key: 'input', label: 'Input Tokens', unit: '', format: (v: number) => v.toLocaleString() },\n" +
+      "      { key: 'output', label: 'Output Tokens', unit: '', format: (v: number) => v.toLocaleString() },\n" +
+      "      { key: 'total', label: 'Total Tokens', unit: '', format: (v: number) => v.toLocaleString() },\n" +
+      '    ]\n' +
+      '\n' +
+      '    return metrics.map((metric) => {\n' +
+      '      const sorted = [...processedData.modelData].sort((a, b) => a[metric.key] - b[metric.key])\n' +
+      '      return {\n' +
+      '        ...metric,\n' +
+      '        least: sorted[0],\n' +
+      '        most: sorted[sorted.length - 1],\n' +
+      '      }\n' +
+      '    })\n' +
+      '  }, [processedData?.modelData])\n' +
+      '\n' +
+      '  const requestSort = (key: string) => {\n' +
+      "    let direction: 'asc' | 'desc' = 'asc'\n" +
+      "    if (sortConfig.key === key && sortConfig.direction === 'asc') {\n" +
+      "      direction = 'desc'\n" +
+      '    }\n' +
+      '    setSortConfig({ key, direction })\n' +
+      '  }\n' +
+      '\n' +
+      '  return (\n' +
+      '    <div className="min-h-screen bg-slate-950 text-slate-200 p-6 md:p-10 font-sans">\n' +
+      '      <header className="max-w-7xl mx-auto mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">\n' +
+      '        <div>\n' +
+      '          <h1 className="text-4xl font-bold text-white mb-2 flex items-center gap-3">\n' +
+      '            <Activity className="text-cyan-400 w-10 h-10" />\n' +
+      '            Usage Analytics\n' +
+      '          </h1>\n' +
+      '          <p className="text-slate-400 text-lg">\n' +
+      '            Upload your CSV to visualize token usage, costs, and trends.\n' +
+      '          </p>\n' +
+      '        </div>\n' +
+      '\n' +
+      '        <div className="flex flex-col gap-2">\n' +
+      '          <label className="relative group cursor-pointer">\n' +
+      '            <input\n' +
+      '              type="file"\n' +
+      '              accept=".csv"\n' +
+      '              onChange={onFileUpload}\n' +
+      '              className="hidden"\n' +
+      '              disabled={isUploading}\n' +
+      '            />\n' +
+      '            <div\n' +
+      '              className={`flex items-center gap-3 px-6 py-3 rounded-xl border-2 border-dashed transition-all ${\n' +
+      '                isUploading\n' +
+      '                  ? \'bg-slate-800 border-slate-700 opacity-50 cursor-not-allowed\'\n' +
+      "                  : 'bg-slate-900/50 border-slate-700 hover:border-cyan-500 hover:bg-slate-900'\n" +
+      '              }`}\n' +
+      '            >\n' +
+      '              <Upload\n' +
+      "                className={`w-5 h-5 ${isUploading ? 'animate-bounce' : 'text-cyan-400'}`}\n" +
+      '              />\n' +
+      '              <span className="font-semibold">\n' +
+      "                {isUploading ? 'Uploading...' : 'Drop CSV or Click to Upload'}\n" +
+      '              </span>\n' +
+      '            </div>\n' +
+      '          </label>\n' +
+      "          {uploadStatus === 'success' && (\n" +
+      '            <p className="text-emerald-400 text-sm flex items-center gap-1">\n' +
+      '              <CheckCircle2 size={14} /> Upload successful!\n' +
+      '            </p>\n' +
+      '          )}\n' +
+      "          {uploadStatus === 'error' && (\n" +
+      '            <p className="text-rose-400 text-sm flex items-center gap-1">\n' +
+      '              <AlertCircle size={14} /> Upload failed.\n' +
+      '            </p>\n' +
+      '          )}\n' +
+      '        </div>\n' +
+      '      </header>\n' +
+      '\n' +
+      '      {!processedData ? (\n' +
+      '        <div className="max-w-7xl mx-auto py-20 text-center">\n' +
+      '          <div className="bg-slate-900/50 border border-slate-800 rounded-3xl p-12 inline-block">\n' +
+      '            <FileText className="w-16 h-16 text-slate-700 mx-auto mb-6" />\n' +
+      '            <h2 className="text-2xl font-semibold text-slate-300 mb-2">\n' +
+      '              No Data Available\n' +
+      '            </h2>\n' +
+      '            <p className="text-slate-500 max-w-sm mx-auto">\n' +
+      '              Please upload a CSV file with the required headers to see your\n' +
+      '              analytics dashboard.\n' +
+      '            </p>\n' +
+      '          </div>\n' +
+      '        </div>\n' +
+      '      ) : (\n' +
+      '        <main className="max-w-7xl mx-auto space-y-8">\n' +
+      '          {/* Summary Section */}\n' +
+      '          {summaryData && (\n' +
+      '            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">\n' +
+      '              {summaryData.map((metric) => (\n' +
+      '                <div key={metric.key} class... 11410 more characters,
+    frame: \'524 |              </div>\\n\' +
+    525 |            </div>\\n\' +
+    526 |          </main>\\n\' +
+    \'    |          ^\\n\' +
+    527 |        )}\\n\' +
+    528 |      </div>\',
+    runnerError: Error: RunnerError
+        at reviveInvokeError (file:///D:/work/cursor-usage/node_modules/.pnpm/vite@7.3.1_@types+node@22.1_17deef68faa54fbb66095d3e90872578/node_modules/vite/dist/node/module-runner.js:476:64)   
+        at Object.invoke (file:///D:/work/cursor-usage/node_modules/.pnpm/vite@7.3.1_@types+node@22.1_17deef68faa54fbb66095d3e90872578/node_modules/vite/dist/node/module-runner.js:549:11)       
+        at ModuleRunner.getModuleInformation (file:///D:/work/cursor-usage/node_modules/.pnpm/vite@7.3.1_@types+node@22.1_17deef68faa54fbb66095d3e90872578/node_modules/vite/dist/node/module-runner.js:1086:7)
+        at request (file:///D:/work/cursor-usage/node_modules/.pnpm/vite@7.3.1_@types+node@22.1_17deef68faa54fbb66095d3e90872578/node_modules/vite/dist/node/module-runner.js:1103:83)
+        at D:/work/cursor-usage/src/routeTree.gen.ts:12:1
+        at ESModulesEvaluator.runInlinedModule (file:///D:/work/cursor-usage/node_modules/.pnpm/vite@7.3.1_@types+node@22.1_17deef68faa54fbb66095d3e90872578/node_modules/vite/dist/node/module-runner.js:913:3)
+        at ModuleRunner.directRequest (file:///D:/work/cursor-usage/node_modules/.pnpm/vite@7.3.1_@types+node@22.1_17deef68faa54fbb66095d3e90872578/node_modules/vite/dist/node/module-runner.js:1146:59)
+        at ModuleRunner.cachedRequest (file:///D:/work/cursor-usage/node_modules/.pnpm/vite@7.3.1_@types+node@22.1_17deef68faa54fbb66095d3e90872578/node_modules/vite/dist/node/module-runner.js:1053:73)
+        at D:/work/cursor-usage/src/router.tsx:4:1
+        at ESModulesEvaluator.runInlinedModule (file:///D:/work/cursor-usage/node_modules/.pnpm/vite@7.3.1_@types+node@22.1_17deef68faa54fbb66095d3e90872578/node_modules/vite/dist/node/module-runner.js:913:3)
+  },
+  status: 500,
+  statusText: undefined,
+  headers: undefined,
+  data: undefined,
+  body: undefined,
+  unhandled: true
+}
+
+hey remove these as they are not serious values
+
+deepseek-r1-0528	$0.0000	$0.00	0	$0.0000	0	0	0
+gpt-4o	$0.0000	$0.00	0	$0.0000	0	0	0
+claude-3.5-sonnet	$0.0000	$0.00	0	$0.0000	0	0	0
+claude-3.7-sonnet-thinking	$0.0000	$0.00	0	$0.0000	0	0	0
+premium-tool-call	$0.0000	$0.00	0	$0.0000	0	0	0
+claude-3.7-sonnet-max	$0.0000	$0.00	0	$0.0000	0	0	0
+gemini-2.5-pro-max	$0.0000	$0.00	0	$0.0000	0	0	0
+gemini-2.5-pro-exp-03-25	$0.0000	$0.00	0	$0.0000	0	0	0
+
+change the font color in "Model Performance Breakdown" to be on a scale between red and green 
+you have the data take the min and the max and scale the colors
+add a modal for me to pick which models are included in the dashboard
+the filter modal don't make it two columns make it flex wrap and make the span fit the models names
+
+I added the models icons to the public folder please add them before the names
+I added more logo for grok and cursor(composer auto reviewer)
+o3 is gpt and agent_review is cursor
+make "Usage Trends (Daily)" wider
+
+use all the screen width I don't like the mx-auto shit
+
+rotate the x axis labels in "Usage Trends (Daily)" so it's readable
+don't show all the labels
