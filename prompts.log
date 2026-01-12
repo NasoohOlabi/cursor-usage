@@ -281,3 +281,7 @@ use all the screen width I don't like the mx-auto shit
 
 rotate the x axis labels in "Usage Trends (Daily)" so it's readable
 don't show all the labels
+break the massive @src/routes/index.tsx into components man please
+
+add time filter from - to
+@src/components/dashboard/UsageTrendsChart.tsx:70-76 round the values here please
