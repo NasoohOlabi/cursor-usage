@@ -8,6 +8,10 @@ export interface ModelData {
 	pricePer1MTokens: number;
 	avgOutputTokens: number;
 	avgPromptCost: number;
+	minPromptCost: number;
+	maxPromptCost: number;
+	p50PromptCost: number;
+	p90PromptCost: number;
 }
 
 export interface ProviderData {
@@ -25,7 +29,17 @@ export interface ProviderData {
 export interface TimeseriesData {
 	name: string;
 	cost: number;
-	tokens: number;
+	totalTokens: number;
+	inputWithCacheWrite: number;
+	outputTokens: number;
+	[key: string]: string | number;
+}
+
+export interface TimeseriesSeriesMeta {
+	key: string;
+	label: string;
+	metric: "tokens" | "cost";
+	kind: "provider" | "user";
 }
 
 export interface UsageByKind {
@@ -38,6 +52,7 @@ export interface ProcessedData {
 	usageByKind: UsageByKind[];
 	timeseries: TimeseriesData[];
 	providerData: ProviderData[];
+	timeseriesMeta: TimeseriesSeriesMeta[];
 }
 
 export interface MetricSummary {
@@ -50,6 +65,12 @@ export interface MetricSummary {
 }
 
 export interface SortConfig {
-	key: string;
-	direction: "asc" | "desc";
+	key: string | null;
+	direction: "asc" | "desc" | null;
 }
+
+export type CostAggregation = "sum" | "average" | "max" | "min" | "p50" | "p90";
+
+export type ModelBreakdownRow = ModelData & {
+	costAgg: number;
+};

@@ -73,7 +73,7 @@ export const getScaledColor = (
 	let ratio = (value - min) / (max - min);
 
 	// For cost-related metrics, lower is better (green)
-	const costMetrics = ["cost", "pricePer1MTokens", "avgPromptCost"];
+	const costMetrics = ["cost", "pricePer1MTokens", "avgPromptCost", "costAgg"];
 	if (costMetrics.includes(key)) {
 		ratio = 1 - ratio;
 	}

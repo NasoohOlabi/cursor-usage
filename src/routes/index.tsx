@@ -17,7 +17,9 @@ import { UsageTrendsChart } from "../components/dashboard/UsageTrendsChart";
 
 // Utils & Types
 import {
+	CostAggregation,
 	MetricSummary,
+	ModelBreakdownRow,
 	ProcessedData,
 	SortConfig,
 } from "../components/dashboard/types";
@@ -89,14 +91,23 @@ function Dashboard() {
 		"idle" | "success" | "error"
 	>("idle");
 	const [sortConfig, setSortConfig] = useState<SortConfig>({
-		key: "cost",
-		direction: "desc",
+		key: null,
+		direction: null,
 	});
+	const [costAggregation, setCostAggregation] =
+		useState<CostAggregation>("sum");
 
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [selectedModels, setSelectedModels] = useState<string[]>([]);
 	const [fromDate, setFromDate] = useState<string>("");
 	const [toDate, setToDate] = useState<string>("");
+
+	const sanitizeSeriesKey = useCallback((value: string) => {
+		return value
+			.toLowerCase()
+			.replace(/[^a-z0-9]+/g, "_")
+			.replace(/^_+|_+$/g, "");
+	}, []);
 
 	// Load selected models and dates from localStorage on mount
 	useEffect(() => {
@@ -209,23 +220,43 @@ function Dashboard() {
 						total: 0,
 						cost: 0,
 						count: 0,
+						costSamples: [],
 					};
+				const rowCost = Number(row["Cost"]) || 0;
 				acc[model].input += Number(row["Input (w/o Cache Write)"]) || 0;
 				acc[model].output += Number(row["Output Tokens"]) || 0;
 				acc[model].total += Number(row["Total Tokens"]) || 0;
-				acc[model].cost += Number(row["Cost"]) || 0;
+				acc[model].cost += rowCost;
 				acc[model].count += 1;
+				acc[model].costSamples.push(rowCost);
 				return acc;
 			}, {})
 		)
-			.map((m: any) => ({
-				...m,
-				pricePer1MTokens: m.total > 0 ? (m.cost / m.total) * 1000000 : 0,
-				avgOutputTokens: m.count > 0 ? m.output / m.count : 0,
-				avgPromptCost: m.count > 0 ? m.cost / m.count : 0,
-			}))
-			.filter((m: any) => m.total > 0 || m.cost > 0)
-			.sort((a: any, b: any) => b.cost - a.cost);
+			.map((m: any) => {
+				const sortedCosts = [...m.costSamples].sort(
+					(a: number, b: number) => a - b
+				);
+				const count = sortedCosts.length;
+				const minPromptCost = count > 0 ? sortedCosts[0] : 0;
+				const maxPromptCost = count > 0 ? sortedCosts[count - 1] : 0;
+				const p50PromptCost =
+					count > 0 ? sortedCosts[Math.floor(0.5 * (count - 1))] : 0;
+				const p90PromptCost =
+					count > 0 ? sortedCosts[Math.floor(0.9 * (count - 1))] : 0;
+
+				return {
+					...m,
+					pricePer1MTokens:
+						m.total > 0 ? (m.cost / m.total) * 1000000 : 0,
+					avgOutputTokens: m.count > 0 ? m.output / m.count : 0,
+					avgPromptCost: m.count > 0 ? m.cost / m.count : 0,
+					minPromptCost,
+					maxPromptCost,
+					p50PromptCost,
+					p90PromptCost,
+				};
+			})
+			.filter((m: any) => m.total > 0 || m.cost > 0);
 
 		const usageByKind = Object.values(
 			validData.reduce((acc: any, row) => {
@@ -236,6 +267,64 @@ function Dashboard() {
 			}, {})
 		) as { name: string; value: number }[];
 
+		const providerTotals = new Map<string, { cost: number; tokens: number }>();
+		const userTotals = new Map<string, { cost: number; tokens: number }>();
+
+		validData.forEach((row) => {
+			const provider = getProviderName(row.Model || "Unknown");
+			const user = row.User || "Unknown";
+			const cost = Number(row.Cost) || 0;
+			const totalTokens = Number(row["Total Tokens"]) || 0;
+
+			const providerTotal = providerTotals.get(provider) || {
+				cost: 0,
+				tokens: 0,
+			};
+			providerTotal.cost += cost;
+			providerTotal.tokens += totalTokens;
+			providerTotals.set(provider, providerTotal);
+
+			const userTotal = userTotals.get(user) || { cost: 0, tokens: 0 };
+			userTotal.cost += cost;
+			userTotal.tokens += totalTokens;
+			userTotals.set(user, userTotal);
+		});
+
+		const topProviders = Array.from(providerTotals.entries())
+			.sort((a, b) => b[1].cost - a[1].cost)
+			.slice(0, 5)
+			.map(([name]) => name);
+
+		const topUsers = Array.from(userTotals.entries())
+			.sort((a, b) => b[1].cost - a[1].cost)
+			.slice(0, 5)
+			.map(([name]) => name);
+
+		const providerSeries = topProviders.map((name) => {
+			const safeKey = sanitizeSeriesKey(name);
+			return {
+				name,
+				tokensKey: `providerTokens_${safeKey}`,
+				costKey: `providerCost_${safeKey}`,
+			};
+		});
+
+		const userSeries = topUsers.map((name) => {
+			const safeKey = sanitizeSeriesKey(name);
+			return {
+				name,
+				tokensKey: `userTokens_${safeKey}`,
+				costKey: `userCost_${safeKey}`,
+			};
+		});
+
+		const providerSeriesMap = new Map(
+			providerSeries.map((series) => [series.name, series])
+		);
+		const userSeriesMap = new Map(
+			userSeries.map((series) => [series.name, series])
+		);
+
 		const timeseries = Object.values(
 			validData.reduce((acc: any, row) => {
 				const dateStr =
@@ -243,16 +332,57 @@ function Dashboard() {
 						? row.Date.toISOString().split("T")[0]
 						: String(row.Date).split("T")[0];
 				const date = dateStr || "Unknown";
-				if (!acc[date]) acc[date] = { name: date, cost: 0, tokens: 0 };
+				if (!acc[date]) {
+					acc[date] = {
+						name: date,
+						cost: 0,
+						totalTokens: 0,
+						inputWithCacheWrite: 0,
+						outputTokens: 0,
+					};
+				}
 				acc[date].cost += Number(row.Cost) || 0;
-				acc[date].tokens += Number(row["Total Tokens"]) || 0;
+				acc[date].totalTokens += Number(row["Total Tokens"]) || 0;
+				acc[date].inputWithCacheWrite +=
+					Number(row["Input (w/ Cache Write)"]) || 0;
+				acc[date].outputTokens += Number(row["Output Tokens"]) || 0;
+
+				const provider = getProviderName(row.Model || "Unknown");
+				const providerSeriesEntry = providerSeriesMap.get(provider);
+				if (providerSeriesEntry) {
+					acc[date][providerSeriesEntry.tokensKey] =
+						(acc[date][providerSeriesEntry.tokensKey] || 0) +
+						(Number(row["Total Tokens"]) || 0);
+					acc[date][providerSeriesEntry.costKey] =
+						(acc[date][providerSeriesEntry.costKey] || 0) +
+						(Number(row.Cost) || 0);
+				}
+
+				const user = row.User || "Unknown";
+				const userSeriesEntry = userSeriesMap.get(user);
+				if (userSeriesEntry) {
+					acc[date][userSeriesEntry.tokensKey] =
+						(acc[date][userSeriesEntry.tokensKey] || 0) +
+						(Number(row["Total Tokens"]) || 0);
+					acc[date][userSeriesEntry.costKey] =
+						(acc[date][userSeriesEntry.costKey] || 0) +
+						(Number(row.Cost) || 0);
+				}
+
 				return acc;
 			}, {})
-		).sort((a: any, b: any) => a.name.localeCompare(b.name)) as {
-			name: string;
-			cost: number;
-			tokens: number;
-		}[];
+		).sort((a: any, b: any) => a.name.localeCompare(b.name));
+
+		timeseries.forEach((row: any) => {
+			providerSeries.forEach((series) => {
+				if (row[series.tokensKey] == null) row[series.tokensKey] = 0;
+				if (row[series.costKey] == null) row[series.costKey] = 0;
+			});
+			userSeries.forEach((series) => {
+				if (row[series.tokensKey] == null) row[series.tokensKey] = 0;
+				if (row[series.costKey] == null) row[series.costKey] = 0;
+			});
+		});
 
 		const providerData = Object.values(
 			validData.reduce((acc: any, row) => {
@@ -280,19 +410,141 @@ function Dashboard() {
 			avgPromptCost: p.count > 0 ? p.cost / p.count : 0,
 		})) as any[];
 
-		return { modelData, usageByKind, timeseries, providerData };
-	}, [data, selectedModels, fromDate, toDate]) as ProcessedData | null;
+		const timeseriesMeta = [
+			...providerSeries.flatMap((series) => [
+				{
+					key: series.tokensKey,
+					label: `${series.name} Tokens`,
+					metric: "tokens",
+					kind: "provider",
+				},
+				{
+					key: series.costKey,
+					label: `${series.name} Cost`,
+					metric: "cost",
+					kind: "provider",
+				},
+			]),
+			...(userTotals.size > 1
+				? userSeries.flatMap((series) => [
+						{
+							key: series.tokensKey,
+							label: `${series.name} Tokens`,
+							metric: "tokens",
+							kind: "user",
+						},
+						{
+							key: series.costKey,
+							label: `${series.name} Cost`,
+							metric: "cost",
+							kind: "user",
+						},
+				  ])
+				: []),
+		];
 
-	const sortedModelData = useMemo(() => {
+		return { modelData, usageByKind, timeseries, providerData, timeseriesMeta };
+	}, [data, selectedModels, fromDate, toDate, sanitizeSeriesKey]) as
+		| ProcessedData
+		| null;
+
+	const modelBreakdownData = useMemo<ModelBreakdownRow[]>(() => {
 		if (!processedData?.modelData) return [];
-		return [...processedData.modelData].sort((a: any, b: any) => {
-			const aValue = a[sortConfig.key];
-			const bValue = b[sortConfig.key];
-			if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
-			if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+		return processedData.modelData.map((model) => {
+			let costAgg = model.cost;
+			switch (costAggregation) {
+				case "average":
+					costAgg = model.avgPromptCost;
+					break;
+				case "max":
+					costAgg = model.maxPromptCost;
+					break;
+				case "min":
+					costAgg = model.minPromptCost;
+					break;
+				case "p50":
+					costAgg = model.p50PromptCost;
+					break;
+				case "p90":
+					costAgg = model.p90PromptCost;
+					break;
+				case "sum":
+				default:
+					costAgg = model.cost;
+					break;
+			}
+			return { ...model, costAgg };
+		});
+	}, [processedData?.modelData, costAggregation]);
+
+	const sortedModelData = useMemo<ModelBreakdownRow[]>(() => {
+		if (!modelBreakdownData.length) return [];
+		if (!sortConfig.key || !sortConfig.direction) return modelBreakdownData;
+		const directionFactor = sortConfig.direction === "asc" ? 1 : -1;
+		const sortKey = sortConfig.key as keyof ModelBreakdownRow;
+		return [...modelBreakdownData].sort((a, b) => {
+			if (sortConfig.key === "name") {
+				return a.name.localeCompare(b.name) * directionFactor;
+			}
+			const aValue = a[sortKey] ?? 0;
+			const bValue = b[sortKey] ?? 0;
+			if (aValue < bValue) return -1 * directionFactor;
+			if (aValue > bValue) return 1 * directionFactor;
 			return 0;
 		});
-	}, [processedData?.modelData, sortConfig]);
+	}, [modelBreakdownData, sortConfig]);
+
+	const modelBreakdownSummaryData = useMemo(() => {
+		if (!modelBreakdownData.length) return null;
+		const metrics: Array<{
+			key: keyof ModelBreakdownRow;
+			label: string;
+			unit: string;
+			format: (v: number) => string;
+		}> = [
+			{
+				key: "costAgg",
+				label: "Cost",
+				unit: "$",
+				format: (v: number) => `$${v.toFixed(4)}`,
+			},
+			{
+				key: "pricePer1MTokens",
+				label: "Price/1M Tokens",
+				unit: "$",
+				format: (v: number) => `$${v.toFixed(2)}`,
+			},
+			{
+				key: "input",
+				label: "Input Tokens",
+				unit: "",
+				format: (v: number) => v.toLocaleString(),
+			},
+			{
+				key: "output",
+				label: "Output Tokens",
+				unit: "",
+				format: (v: number) => v.toLocaleString(),
+			},
+			{
+				key: "total",
+				label: "Total Tokens",
+				unit: "",
+				format: (v: number) => v.toLocaleString(),
+			},
+		];
+
+		return metrics.map((metric) => {
+			const sorted = [...modelBreakdownData].sort(
+				(a: any, b: any) => a[metric.key] - b[metric.key]
+			);
+			return {
+				...metric,
+				least: sorted[0],
+				most: sorted[sorted.length - 1],
+			};
+		}) as MetricSummary[];
+	}, [modelBreakdownData]);
 
 	const summaryData = useMemo(() => {
 		if (!processedData?.modelData || processedData.modelData.length === 0)
@@ -356,11 +608,18 @@ function Dashboard() {
 	}, [processedData?.modelData]);
 
 	const requestSort = (key: string) => {
-		let direction: "asc" | "desc" = "asc";
-		if (sortConfig.key === key && sortConfig.direction === "asc") {
-			direction = "desc";
-		}
-		setSortConfig({ key, direction });
+		setSortConfig((prev) => {
+			if (prev.key !== key) {
+				return { key, direction: "desc" };
+			}
+			if (prev.direction === "desc") {
+				return { key, direction: "asc" };
+			}
+			if (prev.direction === "asc") {
+				return { key: null, direction: null };
+			}
+			return { key, direction: "desc" };
+		});
 	};
 
 	return (
@@ -385,7 +644,10 @@ function Dashboard() {
 
 					<ProviderComparison providerData={processedData.providerData} />
 
-					<UsageTrendsChart timeseries={processedData.timeseries} />
+					<UsageTrendsChart
+						timeseries={processedData.timeseries}
+						seriesMeta={processedData.timeseriesMeta}
+					/>
 
 					<DistributionCharts
 						providerData={processedData.providerData}
@@ -395,7 +657,9 @@ function Dashboard() {
 						sortedModelData={sortedModelData}
 						sortConfig={sortConfig}
 						requestSort={requestSort}
-						summaryData={summaryData}
+						summaryData={modelBreakdownSummaryData}
+						costAggregation={costAggregation}
+						onCostAggregationChange={setCostAggregation}
 					/>
 				</main>
 			)}
