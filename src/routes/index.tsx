@@ -24,6 +24,13 @@ import {
 	SortConfig,
 } from "../components/dashboard/types";
 import { getProviderName } from "../components/dashboard/utils";
+import {
+	DEFAULT_DOCS_PRICING,
+	calculateDocsPricePer1M,
+	DocsPricingMap,
+	getTokenTotals,
+	parseCursorDocsPricing,
+} from "../components/dashboard/pricing";
 
 // --- Server Functions ---
 
@@ -76,6 +83,30 @@ const getLatestData = createServerFn({ method: "GET" }).handler(
 	}
 );
 
+const getCursorDocsPricing = createServerFn({ method: "GET" }).handler(async () => {
+	const sources = [
+		"https://r.jina.ai/http://cursor.com/docs/models",
+		"https://cursor.com/docs/models",
+	];
+
+	for (const source of sources) {
+		try {
+			const response = await fetch(source);
+			if (!response.ok) continue;
+			const content = await response.text();
+			return {
+				pricing: parseCursorDocsPricing(content),
+				fetchedAt: new Date().toISOString(),
+				source,
+			};
+		} catch {
+			// Try next source.
+		}
+	}
+
+	throw new Error("Unable to fetch pricing from Cursor docs");
+});
+
 // --- Route Definition ---
 
 export const Route = createFileRoute("/")({
@@ -96,6 +127,14 @@ function Dashboard() {
 	});
 	const [costAggregation, setCostAggregation] =
 		useState<CostAggregation>("sum");
+	const [docsPricing, setDocsPricing] =
+		useState<DocsPricingMap>(DEFAULT_DOCS_PRICING);
+	const [pricingRefreshStatus, setPricingRefreshStatus] = useState<
+		"idle" | "loading" | "success" | "error"
+	>("idle");
+	const [pricingLastUpdated, setPricingLastUpdated] = useState<string | null>(
+		null
+	);
 
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [selectedModels, setSelectedModels] = useState<string[]>([]);
@@ -184,6 +223,19 @@ function Dashboard() {
 		[router]
 	);
 
+	const onRefreshPricing = useCallback(async () => {
+		setPricingRefreshStatus("loading");
+		try {
+			const result = await getCursorDocsPricing();
+			setDocsPricing(result.pricing || DEFAULT_DOCS_PRICING);
+			setPricingLastUpdated(result.fetchedAt);
+			setPricingRefreshStatus("success");
+		} catch (error) {
+			console.error("Pricing refresh failed:", error);
+			setPricingRefreshStatus("error");
+		}
+	}, []);
+
 	// Data Processing
 	const processedData = useMemo(() => {
 		if (!data || !Array.isArray(data)) return null;
@@ -216,16 +268,21 @@ function Dashboard() {
 					acc[model] = {
 						name: model,
 						input: 0,
+						inputWithCacheWrite: 0,
+						cacheRead: 0,
 						output: 0,
 						total: 0,
 						cost: 0,
 						count: 0,
 						costSamples: [],
 					};
+				const tokenTotals = getTokenTotals(row);
 				const rowCost = Number(row["Cost"]) || 0;
-				acc[model].input += Number(row["Input (w/o Cache Write)"]) || 0;
-				acc[model].output += Number(row["Output Tokens"]) || 0;
-				acc[model].total += Number(row["Total Tokens"]) || 0;
+				acc[model].input += tokenTotals.inputWithoutCacheWrite;
+				acc[model].inputWithCacheWrite += tokenTotals.inputWithCacheWrite;
+				acc[model].cacheRead += tokenTotals.cacheRead;
+				acc[model].output += tokenTotals.output;
+				acc[model].total += tokenTotals.totalTokens;
 				acc[model].cost += rowCost;
 				acc[model].count += 1;
 				acc[model].costSamples.push(rowCost);
@@ -243,11 +300,22 @@ function Dashboard() {
 					count > 0 ? sortedCosts[Math.floor(0.5 * (count - 1))] : 0;
 				const p90PromptCost =
 					count > 0 ? sortedCosts[Math.floor(0.9 * (count - 1))] : 0;
+				const docsPrice = calculateDocsPricePer1M(
+					m.name,
+					{
+						inputWithoutCacheWrite: m.input,
+						inputWithCacheWrite: m.inputWithCacheWrite,
+						cacheRead: m.cacheRead,
+						output: m.output,
+						totalTokens: m.total,
+					},
+					docsPricing
+				);
 
 				return {
 					...m,
-					pricePer1MTokens:
-						m.total > 0 ? (m.cost / m.total) * 1000000 : 0,
+					pricePer1MTokens: docsPrice.pricePer1M ?? 0,
+					hasDocsPrice: docsPrice.hasDocsPrice && docsPrice.pricePer1M != null,
 					avgOutputTokens: m.count > 0 ? m.output / m.count : 0,
 					avgPromptCost: m.count > 0 ? m.cost / m.count : 0,
 					minPromptCost,
@@ -257,6 +325,19 @@ function Dashboard() {
 				};
 			})
 			.filter((m: any) => m.total > 0 || m.cost > 0);
+
+		const providerDocsPricingMap = modelData.reduce(
+			(acc, model: any) => {
+				if (!model.hasDocsPrice || !model.total) return acc;
+				const provider = getProviderName(model.name || "Unknown");
+				const existing = acc.get(provider) || { weighted: 0, tokens: 0 };
+				existing.weighted += model.pricePer1MTokens * model.total;
+				existing.tokens += model.total;
+				acc.set(provider, existing);
+				return acc;
+			},
+			new Map<string, { weighted: number; tokens: number }>()
+		);
 
 		const usageByKind = Object.values(
 			validData.reduce((acc: any, row) => {
@@ -403,12 +484,20 @@ function Dashboard() {
 				acc[provider].count += 1;
 				return acc;
 			}, {})
-		).map((p: any) => ({
-			...p,
-			pricePer1MTokens: p.total > 0 ? (p.cost / p.total) * 1000000 : 0,
-			avgOutputTokens: p.count > 0 ? p.output / p.count : 0,
-			avgPromptCost: p.count > 0 ? p.cost / p.count : 0,
-		})) as any[];
+		).map((p: any) => {
+			const docsPricingTotals = providerDocsPricingMap.get(p.name);
+			const hasDocsPrice =
+				!!docsPricingTotals && Number(docsPricingTotals.tokens) > 0;
+			return {
+				...p,
+				pricePer1MTokens: hasDocsPrice
+					? Number(docsPricingTotals!.weighted) / Number(docsPricingTotals!.tokens)
+					: 0,
+				hasDocsPrice,
+				avgOutputTokens: p.count > 0 ? p.output / p.count : 0,
+				avgPromptCost: p.count > 0 ? p.cost / p.count : 0,
+			};
+		}) as any[];
 
 		const timeseriesMeta = [
 			...providerSeries.flatMap((series) => [
@@ -444,7 +533,7 @@ function Dashboard() {
 		];
 
 		return { modelData, usageByKind, timeseries, providerData, timeseriesMeta };
-	}, [data, selectedModels, fromDate, toDate, sanitizeSeriesKey]) as
+	}, [data, selectedModels, fromDate, toDate, sanitizeSeriesKey, docsPricing]) as
 		| ProcessedData
 		| null;
 
@@ -534,16 +623,23 @@ function Dashboard() {
 			},
 		];
 
-		return metrics.map((metric) => {
-			const sorted = [...modelBreakdownData].sort(
-				(a: any, b: any) => a[metric.key] - b[metric.key]
-			);
-			return {
-				...metric,
-				least: sorted[0],
-				most: sorted[sorted.length - 1],
-			};
-		}) as MetricSummary[];
+		return metrics
+			.map((metric) => {
+				const values =
+					metric.key === "pricePer1MTokens"
+						? modelBreakdownData.filter((row) => row.hasDocsPrice)
+						: modelBreakdownData;
+				if (values.length === 0) return null;
+				const sorted = [...values].sort(
+					(a: any, b: any) => a[metric.key] - b[metric.key]
+				);
+				return {
+					...metric,
+					least: sorted[0],
+					most: sorted[sorted.length - 1],
+				};
+			})
+			.filter(Boolean) as MetricSummary[];
 	}, [modelBreakdownData]);
 
 	const summaryData = useMemo(() => {
@@ -595,16 +691,23 @@ function Dashboard() {
 			},
 		];
 
-		return metrics.map((metric) => {
-			const sorted = [...processedData.modelData].sort(
-				(a: any, b: any) => a[metric.key] - b[metric.key]
-			);
-			return {
-				...metric,
-				least: sorted[0],
-				most: sorted[sorted.length - 1],
-			};
-		}) as MetricSummary[];
+		return metrics
+			.map((metric) => {
+				const values =
+					metric.key === "pricePer1MTokens"
+						? processedData.modelData.filter((row) => row.hasDocsPrice)
+						: processedData.modelData;
+				if (values.length === 0) return null;
+				const sorted = [...values].sort(
+					(a: any, b: any) => a[metric.key] - b[metric.key]
+				);
+				return {
+					...metric,
+					least: sorted[0],
+					most: sorted[sorted.length - 1],
+				};
+			})
+			.filter(Boolean) as MetricSummary[];
 	}, [processedData?.modelData]);
 
 	const requestSort = (key: string) => {
@@ -628,6 +731,9 @@ function Dashboard() {
 				isUploading={isUploading}
 				uploadStatus={uploadStatus}
 				onFileUpload={onFileUpload}
+				onRefreshPricing={onRefreshPricing}
+				pricingRefreshStatus={pricingRefreshStatus}
+				pricingLastUpdated={pricingLastUpdated}
 				onOpenFilter={() => setIsModalOpen(true)}
 				selectedModelsCount={selectedModels.length}
 				fromDate={fromDate}

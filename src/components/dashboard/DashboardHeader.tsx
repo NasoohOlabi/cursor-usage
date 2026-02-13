@@ -1,9 +1,19 @@
-import { Activity, Settings, Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+	Activity,
+	Settings,
+	Upload,
+	CheckCircle2,
+	AlertCircle,
+	RefreshCw,
+} from "lucide-react";
 
 interface DashboardHeaderProps {
 	isUploading: boolean;
 	uploadStatus: "idle" | "success" | "error";
 	onFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
+	onRefreshPricing: () => Promise<void>;
+	pricingRefreshStatus: "idle" | "loading" | "success" | "error";
+	pricingLastUpdated: string | null;
 	onOpenFilter: () => void;
 	selectedModelsCount: number;
 	fromDate: string;
@@ -16,6 +26,9 @@ export const DashboardHeader = ({
 	isUploading,
 	uploadStatus,
 	onFileUpload,
+	onRefreshPricing,
+	pricingRefreshStatus,
+	pricingLastUpdated,
 	onOpenFilter,
 	selectedModelsCount,
 	fromDate,
@@ -23,7 +36,6 @@ export const DashboardHeader = ({
 	toDate,
 	setToDate,
 }: DashboardHeaderProps) => {
-	const isDateFilterActive = !!(fromDate || toDate);
 	return (
 		<header className="w-full mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
 			<div>
@@ -73,6 +85,35 @@ export const DashboardHeader = ({
 						</span>
 					)}
 				</button>
+
+				<div className="flex flex-col gap-1">
+					<button
+						onClick={onRefreshPricing}
+						disabled={pricingRefreshStatus === "loading"}
+						className="flex items-center gap-2 px-4 py-3 bg-slate-900/50 border border-slate-700 hover:border-cyan-500 hover:bg-slate-900 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+					>
+						<RefreshCw
+							className={`w-4 h-4 text-cyan-400 ${
+								pricingRefreshStatus === "loading" ? "animate-spin" : ""
+							}`}
+						/>
+						<span className="font-semibold text-slate-200 text-sm">
+							{pricingRefreshStatus === "loading"
+								? "Updating Prices..."
+								: "Update Prices from Cursor"}
+						</span>
+					</button>
+					<p className="text-[11px] text-slate-500">
+						{pricingRefreshStatus === "success"
+							? "Pricing updated from Cursor docs."
+							: pricingRefreshStatus === "error"
+								? "Pricing refresh failed. Using current values."
+								: "Using Cursor docs pricing."}
+						{pricingLastUpdated
+							? ` Last update: ${new Date(pricingLastUpdated).toLocaleString()}.`
+							: ""}
+					</p>
+				</div>
 
 				<div className="flex flex-col gap-2">
 					<label className="relative group cursor-pointer">

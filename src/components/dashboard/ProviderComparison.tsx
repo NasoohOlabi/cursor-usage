@@ -54,7 +54,7 @@ export const ProviderComparison = ({ providerData }: ProviderComparisonProps) =>
 										Avg Price/1M
 									</p>
 									<p className="text-lg font-semibold text-slate-300 font-mono">
-										${p.pricePer1MTokens.toFixed(2)}
+										{p.hasDocsPrice ? `$${p.pricePer1MTokens.toFixed(2)}` : "N/A"}
 									</p>
 								</div>
 								<div>

@@ -68,6 +68,9 @@ export const ModelBreakdownTable = ({
 				<table className="w-full text-left border-collapse min-w-[1000px]">
 					<thead>
 						<tr className="border-b border-slate-800">
+							<th className="py-3 px-4 text-slate-400 font-medium text-xs text-right w-12">
+								#
+							</th>
 							<th
 								className="py-3 px-4 text-slate-400 font-medium text-xs cursor-pointer hover:text-white transition-colors group"
 								onClick={() => requestSort("name")}
@@ -125,6 +128,9 @@ export const ModelBreakdownTable = ({
 								key={idx}
 								className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
 							>
+								<td className="py-3 px-4 text-sm text-right font-mono text-slate-400">
+									{idx + 1}
+								</td>
 								<td
 									className="py-3 px-4 text-sm font-medium text-slate-300 truncate max-w-[200px]"
 									title={m.name}
@@ -149,14 +155,16 @@ export const ModelBreakdownTable = ({
 								<td
 									className="py-3 px-4 text-sm text-right font-mono"
 									style={{
-										color: getScaledColor(
-											"pricePer1MTokens",
-											m.pricePer1MTokens,
-											summaryData
-										),
+										color: m.hasDocsPrice
+											? getScaledColor(
+													"pricePer1MTokens",
+													m.pricePer1MTokens,
+													summaryData
+											  )
+											: "inherit",
 									}}
 								>
-									${m.pricePer1MTokens.toFixed(2)}
+									{m.hasDocsPrice ? `$${m.pricePer1MTokens.toFixed(2)}` : "N/A"}
 								</td>
 								<td
 									className="py-3 px-4 text-sm text-right font-mono"

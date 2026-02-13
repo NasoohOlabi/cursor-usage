@@ -6,6 +6,7 @@ export interface ModelData {
 	cost: number;
 	count: number;
 	pricePer1MTokens: number;
+	hasDocsPrice: boolean;
 	avgOutputTokens: number;
 	avgPromptCost: number;
 	minPromptCost: number;
@@ -22,6 +23,7 @@ export interface ProviderData {
 	cost: number;
 	count: number;
 	pricePer1MTokens: number;
+	hasDocsPrice: boolean;
 	avgOutputTokens: number;
 	avgPromptCost: number;
 }
