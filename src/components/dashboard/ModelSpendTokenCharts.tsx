@@ -3,8 +3,8 @@ import { DollarSign, LineChart as LineChartIcon } from "lucide-react";
 import {
 	CartesianGrid,
 	Legend,
-	Line,
-	LineChart,
+	Area,
+	AreaChart,
 	ResponsiveContainer,
 	Tooltip,
 	XAxis,
@@ -147,7 +147,7 @@ export const ModelSpendTokenCharts = ({
 				<div className="h-[380px] w-full min-w-0 mt-4">
 					<ClientChartMount className="h-full w-full min-w-0">
 						<ResponsiveContainer width="100%" height="100%" minWidth={0}>
-							<LineChart
+							<AreaChart
 								data={timeseries}
 								margin={{ bottom: 56, left: 8, right: 8, top: 8 }}
 							>
@@ -186,18 +186,20 @@ export const ModelSpendTokenCharts = ({
 									)}
 								/>
 								{modelSeries.map((series, index) => (
-									<Line
+									<Area
 										key={series.costKey}
 										type="monotone"
 										dataKey={series.costKey}
 										name={shortModelName(series.name)}
 										stroke={COLORS[index % COLORS.length]}
+										fill={COLORS[index % COLORS.length]}
+										fillOpacity={0.1}
 										strokeWidth={2}
 										dot={{ r: 2 }}
 										activeDot={{ r: 4 }}
 									/>
 								))}
-							</LineChart>
+							</AreaChart>
 						</ResponsiveContainer>
 					</ClientChartMount>
 				</div>
@@ -220,7 +222,7 @@ export const ModelSpendTokenCharts = ({
 				<div className="h-[380px] w-full min-w-0 mt-4">
 					<ClientChartMount className="h-full w-full min-w-0">
 						<ResponsiveContainer width="100%" height="100%" minWidth={0}>
-							<LineChart
+							<AreaChart
 								data={timeseries}
 								margin={{ bottom: 56, left: 8, right: 8, top: 8 }}
 							>
@@ -259,18 +261,20 @@ export const ModelSpendTokenCharts = ({
 									)}
 								/>
 								{modelSeries.map((series, index) => (
-									<Line
+									<Area
 										key={series.tokensKey}
 										type="monotone"
 										dataKey={series.tokensKey}
 										name={shortModelName(series.name)}
 										stroke={COLORS[index % COLORS.length]}
+										fill={COLORS[index % COLORS.length]}
+										fillOpacity={0.1}
 										strokeWidth={2}
 										dot={{ r: 2 }}
 										activeDot={{ r: 4 }}
 									/>
 								))}
-							</LineChart>
+							</AreaChart>
 						</ResponsiveContainer>
 					</ClientChartMount>
 				</div>

@@ -51,15 +51,17 @@ export const DashboardHeader = ({
 	}, [pricingRefreshStatus]);
 
 	return (
-		<header className="w-full mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-			<div>
-				<h1 className="text-4xl font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-3">
-					<Activity className="text-cyan-500 dark:text-cyan-400 w-10 h-10" />
-					Usage Analytics
-				</h1>
-				<p className="text-slate-600 dark:text-slate-400 text-lg">
-					Upload your CSV to visualize token usage, costs, and trends.
-				</p>
+		<header className="w-full mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+			<div className="flex items-center gap-3">
+				<Activity className="text-cyan-500 dark:text-cyan-400 w-8 h-8" />
+				<div>
+					<h1 className="text-2xl font-bold text-slate-900 dark:text-white leading-tight">
+						Usage Analytics
+					</h1>
+					<p className="text-slate-600 dark:text-slate-400 text-xs">
+						Upload your CSV to visualize token usage, costs, and trends.
+					</p>
+				</div>
 			</div>
 
 			<div className="flex flex-wrap md:flex-nowrap items-center gap-4">
