@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { DollarSign, Activity } from "lucide-react";
 import {
 	ResponsiveContainer,
@@ -7,6 +8,9 @@ import {
 	Tooltip,
 	Legend,
 } from "recharts";
+import { useTheme } from "../ThemeContext";
+import { ClientChartMount } from "./ClientChartMount";
+import { getChartTheme } from "./chartTheme";
 import { COLORS } from "./utils";
 import { ProviderData, UsageByKind } from "./types";
 
@@ -19,21 +23,24 @@ export const DistributionCharts = ({
 	providerData,
 	usageByKind,
 }: DistributionChartsProps) => {
+	const { isDark } = useTheme();
+	const chartTheme = useMemo(() => getChartTheme(isDark), [isDark]);
 	return (
 		<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 			{/* Provider Cost Share */}
-			<div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 hover:border-slate-700 transition-colors">
-				<div className="flex items-center gap-3 mb-6">
+			<div className="rounded-2xl border border-slate-200/90 bg-white/70 p-6 shadow-sm transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-700">
+				<div className="mb-6 flex items-center gap-3">
 					<div className="p-2 bg-emerald-500/10 rounded-lg">
-						<DollarSign className="text-emerald-400 w-6 h-6" />
+						<DollarSign className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
 					</div>
-					<h2 className="text-xl font-bold text-white">Cost by Provider</h2>
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white">Cost by Provider</h2>
 				</div>
-				<div className="h-[300px] w-full">
-					<ResponsiveContainer width="100%" height="100%">
-						<PieChart>
-							<Pie
-								data={providerData}
+				<div className="h-[300px] w-full min-w-0">
+					<ClientChartMount className="h-full w-full min-w-0">
+						<ResponsiveContainer width="100%" height="100%" minWidth={0}>
+							<PieChart>
+								<Pie
+									data={providerData}
 								cx="50%"
 								cy="50%"
 								innerRadius={60}
@@ -51,10 +58,13 @@ export const DistributionCharts = ({
 							</Pie>
 							<Tooltip
 								contentStyle={{
-									backgroundColor: "#0f172a",
-									border: "1px solid #1e293b",
+									backgroundColor: chartTheme.tooltipBg,
+									border: `1px solid ${chartTheme.tooltipBorder}`,
 									borderRadius: "8px",
+									boxShadow: chartTheme.tooltipShadow,
 								}}
+								itemStyle={{ color: chartTheme.tooltipRow }}
+								labelStyle={{ color: chartTheme.tooltipLabel }}
 								formatter={(value: any) => [
 									`$${Number(value || 0).toFixed(4)}`,
 									"Cost",
@@ -62,25 +72,27 @@ export const DistributionCharts = ({
 							/>
 							<Legend />
 						</PieChart>
-					</ResponsiveContainer>
+						</ResponsiveContainer>
+					</ClientChartMount>
 				</div>
 			</div>
 
 			{/* Usage Centric */}
-			<div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 hover:border-slate-700 transition-colors">
-				<div className="flex items-center gap-3 mb-6">
+			<div className="rounded-2xl border border-slate-200/90 bg-white/70 p-6 shadow-sm transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-700">
+				<div className="mb-6 flex items-center gap-3">
 					<div className="p-2 bg-amber-500/10 rounded-lg">
-						<Activity className="text-amber-400 w-6 h-6" />
+						<Activity className="h-6 w-6 text-amber-600 dark:text-amber-400" />
 					</div>
-					<h2 className="text-xl font-bold text-white">
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white">
 						Request Kind Distribution
 					</h2>
 				</div>
-				<div className="h-[300px] w-full">
-					<ResponsiveContainer width="100%" height="100%">
-						<PieChart>
-							<Pie
-								data={usageByKind}
+				<div className="h-[300px] w-full min-w-0">
+					<ClientChartMount className="h-full w-full min-w-0">
+						<ResponsiveContainer width="100%" height="100%" minWidth={0}>
+							<PieChart>
+								<Pie
+									data={usageByKind}
 								cx="50%"
 								cy="50%"
 								innerRadius={60}
@@ -97,14 +109,18 @@ export const DistributionCharts = ({
 							</Pie>
 							<Tooltip
 								contentStyle={{
-									backgroundColor: "#0f172a",
-									border: "1px solid #1e293b",
+									backgroundColor: chartTheme.tooltipBg,
+									border: `1px solid ${chartTheme.tooltipBorder}`,
 									borderRadius: "8px",
+									boxShadow: chartTheme.tooltipShadow,
 								}}
+								itemStyle={{ color: chartTheme.tooltipRow }}
+								labelStyle={{ color: chartTheme.tooltipLabel }}
 							/>
 							<Legend />
 						</PieChart>
-					</ResponsiveContainer>
+						</ResponsiveContainer>
+					</ClientChartMount>
 				</div>
 			</div>
 		</div>

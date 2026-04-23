@@ -13,6 +13,10 @@ export interface ModelData {
 	maxPromptCost: number;
 	p50PromptCost: number;
 	p90PromptCost: number;
+	p50PromptTokens: number;
+	p90PromptTokens: number;
+	p50ObservedCostPer1M: number;
+	p90ObservedCostPer1M: number;
 }
 
 export interface ProviderData {
@@ -49,12 +53,20 @@ export interface UsageByKind {
 	value: number;
 }
 
+/** Per-model daily series keys on `TimeseriesData` (top models by spend in range). */
+export interface ModelTimeseriesSeries {
+	name: string;
+	tokensKey: string;
+	costKey: string;
+}
+
 export interface ProcessedData {
 	modelData: ModelData[];
 	usageByKind: UsageByKind[];
 	timeseries: TimeseriesData[];
 	providerData: ProviderData[];
 	timeseriesMeta: TimeseriesSeriesMeta[];
+	modelSeries: ModelTimeseriesSeries[];
 }
 
 export interface MetricSummary {

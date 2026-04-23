@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { TrendingUp } from "lucide-react";
+import { useTheme } from "../ThemeContext";
+import { getChartTheme } from "./chartTheme";
 import {
 	CartesianGrid,
 	Legend,
@@ -10,6 +12,7 @@ import {
 	XAxis,
 	YAxis,
 } from "recharts";
+import { ClientChartMount } from "./ClientChartMount";
 import { COLORS } from "./utils";
 import { TimeseriesData, TimeseriesSeriesMeta } from "./types";
 
@@ -34,6 +37,8 @@ export const UsageTrendsChart = ({
 	timeseries,
 	seriesMeta,
 }: UsageTrendsChartProps) => {
+	const { isDark } = useTheme();
+	const chartTheme = useMemo(() => getChartTheme(isDark), [isDark]);
 	const [hiddenKeys, setHiddenKeys] = useState<string[]>([
 		"inputWithCacheWrite",
 		"outputTokens",
@@ -173,7 +178,7 @@ export const UsageTrendsChart = ({
 
 		const renderGroup = (items: typeof legendItems, title: string) => (
 			<div className="flex flex-col gap-2">
-				<span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500">
+				<span className="text-[10px] uppercase tracking-wider font-semibold text-slate-500 dark:text-slate-500">
 					{title}
 				</span>
 				<div className="flex flex-wrap gap-2">
@@ -188,8 +193,8 @@ export const UsageTrendsChart = ({
 								onClick={() => toggleSeries(item.key)}
 								className={`flex items-center gap-2 rounded-full border px-2.5 py-1 transition-colors ${
 									isHidden
-										? "border-slate-800 text-slate-500 bg-slate-900/50"
-										: "border-slate-700 text-slate-200 hover:border-slate-600 bg-slate-800/50"
+										? "border-slate-200 text-slate-500 bg-slate-100/80 dark:border-slate-800 dark:text-slate-500 dark:bg-slate-900/50"
+										: "border-slate-200 text-slate-800 hover:border-slate-300 bg-white/80 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-600 dark:bg-slate-800/50"
 								}`}
 							>
 								<span
@@ -218,49 +223,56 @@ export const UsageTrendsChart = ({
 	};
 
 	return (
-		<div className="bg-slate-900/50 border border-slate-800 rounded-2xl p-6 hover:border-slate-700 transition-colors w-full">
+		<div className="w-full rounded-2xl border border-slate-200/90 dark:border-slate-800 bg-white/70 p-6 shadow-sm transition-colors hover:border-slate-300 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-700">
 			<div className="flex items-center gap-3 mb-6">
 				<div className="p-2 bg-violet-500/10 rounded-lg">
-					<TrendingUp className="text-violet-400 w-6 h-6" />
+					<TrendingUp className="h-6 w-6 text-violet-500 dark:text-violet-400" />
 				</div>
-				<h2 className="text-xl font-bold text-white">
+				<h2 className="text-xl font-bold text-slate-900 dark:text-white">
 					Usage Trends (Daily)
 				</h2>
 			</div>
-			<div className="h-[450px] w-full">
-				<ResponsiveContainer width="100%" height="100%">
-					<LineChart
+			<div className="h-[450px] w-full min-w-0">
+				<ClientChartMount className="h-full w-full min-w-0">
+					<ResponsiveContainer width="100%" height="100%" minWidth={0}>
+						<LineChart
 						data={timeseries}
 						margin={{ bottom: 60, left: 20, right: 20 }}
 					>
-						<CartesianGrid strokeDasharray="3 3" stroke="#1e293b" />
+						<CartesianGrid
+							strokeDasharray="3 3"
+							stroke={chartTheme.gridStroke}
+						/>
 						<XAxis
 							dataKey="name"
-							stroke="#64748b"
-							fontSize={10}
+							stroke={chartTheme.axisStroke}
+							tick={{ fill: chartTheme.tickFill, fontSize: 10 }}
 							angle={-45}
 							textAnchor="end"
 							height={100}
 						/>
 						<YAxis
 							yAxisId="left"
-							stroke="#64748b"
-							fontSize={12}
+							stroke={chartTheme.axisStroke}
+							tick={{ fill: chartTheme.tickFill, fontSize: 12 }}
 							tickFormatter={formatYAxis}
 						/>
 						<YAxis
 							yAxisId="right"
 							orientation="right"
-							stroke="#64748b"
-							fontSize={12}
+							stroke={chartTheme.axisStroke}
+							tick={{ fill: chartTheme.tickFill, fontSize: 12 }}
 							tickFormatter={formatCurrency}
 						/>
 						<Tooltip
 							contentStyle={{
-								backgroundColor: "#0f172a",
-								border: "1px solid #1e293b",
+								backgroundColor: chartTheme.tooltipBg,
+								border: `1px solid ${chartTheme.tooltipBorder}`,
 								borderRadius: "8px",
+								boxShadow: chartTheme.tooltipShadow,
 							}}
+							itemStyle={{ color: chartTheme.tooltipRow }}
+							labelStyle={{ color: chartTheme.tooltipLabel }}
 							formatter={(value: any, name: any) => {
 								const val = Number(value);
 								if (String(name || "").toLowerCase().includes("cost"))
@@ -331,7 +343,8 @@ export const UsageTrendsChart = ({
 							/>
 						))}
 					</LineChart>
-				</ResponsiveContainer>
+					</ResponsiveContainer>
+				</ClientChartMount>
 			</div>
 		</div>
 	);

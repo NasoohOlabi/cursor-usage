@@ -36,25 +36,25 @@ export const FilterModal = ({
 
 	return (
 		<div
-			className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200"
+			className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 dark:bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200"
 			onClick={onClose}
 		>
 			<div
-				className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200"
+				className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl dark:shadow-2xl shadow-xl animate-in zoom-in-95 duration-200"
 				onClick={(e) => e.stopPropagation()}
 			>
-				<div className="p-6 border-b border-slate-800 flex items-center justify-between">
+				<div className="p-6 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
 					<div>
-						<h2 className="text-xl font-bold text-white">
+						<h2 className="text-xl font-bold text-slate-900 dark:text-white">
 							Select Models
 						</h2>
-						<p className="text-slate-400 text-sm">
+						<p className="text-slate-600 dark:text-slate-400 text-sm">
 							Choose which models to include in the analytics.
 						</p>
 					</div>
 					<button
 						onClick={onClose}
-						className="p-2 hover:bg-slate-800 rounded-full transition-colors text-slate-400 hover:text-white"
+						className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
 						aria-label="Close"
 					>
 						<X size={24} />
@@ -62,7 +62,7 @@ export const FilterModal = ({
 				</div>
 				<div className="flex-1 overflow-y-auto p-6 space-y-8">
 					<div className="space-y-4">
-						<h3 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">
+						<h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
 							Models
 						</h3>
 						<div className="flex flex-wrap gap-2">
@@ -80,8 +80,8 @@ export const FilterModal = ({
 									}}
 									className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all cursor-pointer ${
 										selectedModels.includes(model)
-											? "bg-cyan-500/20 border-cyan-500/50 text-cyan-400 shadow-[0_0_15px_-5px_rgba(6,182,212,0.3)]"
-											: "bg-slate-800/50 border-slate-700 text-slate-400 hover:border-slate-500"
+											? "bg-cyan-500/20 border-cyan-500/50 text-cyan-600 dark:text-cyan-400 shadow-[0_0_15px_-5px_rgba(6,182,212,0.25)]"
+											: "bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:border-slate-400 dark:hover:border-slate-500"
 									}`}
 								>
 									<ModelIcon name={model} />
@@ -95,19 +95,19 @@ export const FilterModal = ({
 							))}
 						</div>
 					</div>
-					<div className="p-6 border-t border-slate-800 flex justify-between items-center bg-slate-900/50 rounded-b-3xl">
+					<div className="p-6 border-t border-slate-200 dark:border-slate-800 flex justify-between items-center bg-slate-50/80 dark:bg-slate-900/50 rounded-b-3xl">
 						<button
 							onClick={() => {
 								setSelectedModels([]);
 							}}
-							className="text-sm text-slate-400 hover:text-white transition-colors font-medium"
+							className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors font-medium"
 						>
 							Clear All
 						</button>
 						<div className="flex gap-3">
 							<button
 								onClick={() => setSelectedModels(allModels)}
-								className="px-4 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
+								className="px-4 py-2 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors"
 							>
 								Select All
 							</button>

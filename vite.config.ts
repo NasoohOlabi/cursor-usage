@@ -12,13 +12,13 @@ const config = defineConfig({
   },
   plugins: [
     devtools(),
-    nitro(),
-    // this is the plugin that enables path aliases
+    // TanStack Start must register Vite environments before Nitro (see nitro/vite + start docs)
     viteTsConfigPaths({
       projects: ['./tsconfig.json'],
     }),
     tailwindcss(),
     tanstackStart(),
+    nitro(),
     viteReact(),
   ],
 })

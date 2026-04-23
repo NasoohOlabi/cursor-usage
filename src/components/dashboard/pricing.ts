@@ -22,6 +22,8 @@ export const DEFAULT_DOCS_PRICING: DocsPricingMap = {
 	"claude-4.6-opus": { input: 5, cacheWrite: 6.25, cacheRead: 0.5, output: 25 },
 	"composer-1": { input: 1.25, cacheWrite: null, cacheRead: 0.125, output: 10 },
 	"composer-1.5": { input: 3.5, cacheWrite: null, cacheRead: 0.35, output: 17.5 },
+	"composer-2": { input: 0.5, cacheWrite: null, cacheRead: 0.2, output: 2.5 },
+	"composer-2-fast": { input: 0.5, cacheWrite: null, cacheRead: 0.2, output: 2.5 },
 	"gemini-2.5-flash": { input: 0.3, cacheWrite: null, cacheRead: 0.03, output: 2.5 },
 	"gemini-3-flash": { input: 0.5, cacheWrite: null, cacheRead: 0.05, output: 3 },
 	"gemini-3-pro": { input: 2, cacheWrite: null, cacheRead: 0.2, output: 12 },
@@ -41,6 +43,7 @@ const MODEL_LABELS: Record<string, string> = {
 	"Claude 4.6 Opus": "claude-4.6-opus",
 	"Composer 1": "composer-1",
 	"Composer 1.5": "composer-1.5",
+	"Composer 2": "composer-2",
 	"Gemini 2.5 Flash": "gemini-2.5-flash",
 	"Gemini 3 Flash": "gemini-3-flash",
 	"Gemini 3 Pro": "gemini-3-pro",
@@ -74,6 +77,8 @@ export const normalizeModelForPricing = (rawModelName: string) => {
 	if (model.includes("claude-4.5-sonnet")) return "claude-4.5-sonnet";
 	if (model.includes("composer-1.5")) return "composer-1.5";
 	if (model === "composer-1") return "composer-1";
+	if (model.includes("composer-2-fast")) return "composer-2-fast";
+	if (model.includes("composer-2")) return "composer-2";
 	if (model.includes("gemini-2.5-flash")) return "gemini-2.5-flash";
 	if (model.includes("gemini-3-flash")) return "gemini-3-flash";
 	if (model.includes("gemini-3-pro")) return "gemini-3-pro";
