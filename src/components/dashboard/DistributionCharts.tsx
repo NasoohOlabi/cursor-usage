@@ -2,11 +2,13 @@ import { useMemo } from "react";
 import { DollarSign, Activity } from "lucide-react";
 import {
 	ResponsiveContainer,
-	PieChart,
-	Pie,
+	BarChart,
+	Bar,
 	Cell,
 	Tooltip,
 	Legend,
+	XAxis,
+	YAxis,
 } from "recharts";
 import { useTheme } from "../ThemeContext";
 import { ClientChartMount } from "./ClientChartMount";
@@ -25,6 +27,19 @@ export const DistributionCharts = ({
 }: DistributionChartsProps) => {
 	const { isDark } = useTheme();
 	const chartTheme = useMemo(() => getChartTheme(isDark), [isDark]);
+
+	const providerBarData = useMemo(() => {
+		const obj: any = { name: "Cost Share" };
+		providerData.forEach(p => obj[p.name] = p.cost);
+		return [obj];
+	}, [providerData]);
+
+	const kindBarData = useMemo(() => {
+		const obj: any = { name: "Request Share" };
+		usageByKind.forEach(k => obj[k.name] = k.value);
+		return [obj];
+	}, [usageByKind]);
+
 	return (
 		<div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 			{/* Provider Cost Share */}
@@ -35,43 +50,41 @@ export const DistributionCharts = ({
 					</div>
 					<h2 className="text-xl font-bold text-slate-900 dark:text-white">Cost by Provider</h2>
 				</div>
-				<div className="h-[300px] w-full min-w-0">
+				<div className="h-[160px] w-full min-w-0">
 					<ClientChartMount className="h-full w-full min-w-0">
 						<ResponsiveContainer width="100%" height="100%" minWidth={0}>
-							<PieChart>
-								<Pie
-									data={providerData}
-								cx="50%"
-								cy="50%"
-								innerRadius={60}
-								outerRadius={100}
-								paddingAngle={5}
-								dataKey="cost"
-								nameKey="name"
+							<BarChart
+								data={providerBarData}
+								layout="vertical"
+								stackOffset="expand"
+								margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
 							>
-								{providerData.map((_, index) => (
-									<Cell
-										key={`cell-${index}`}
+								<XAxis type="number" hide />
+								<YAxis type="category" dataKey="name" hide />
+								<Tooltip
+									contentStyle={{
+										backgroundColor: chartTheme.tooltipBg,
+										border: `1px solid ${chartTheme.tooltipBorder}`,
+										borderRadius: "8px",
+										boxShadow: chartTheme.tooltipShadow,
+									}}
+									itemStyle={{ color: chartTheme.tooltipRow }}
+									labelStyle={{ color: chartTheme.tooltipLabel }}
+									formatter={(value: any, name: any) => [
+										`$${Number(value || 0).toFixed(4)}`,
+										name,
+									]}
+								/>
+								<Legend verticalAlign="bottom" />
+								{providerData.map((p, index) => (
+									<Bar
+										key={p.name}
+										dataKey={p.name}
+										stackId="1"
 										fill={COLORS[index % COLORS.length]}
 									/>
 								))}
-							</Pie>
-							<Tooltip
-								contentStyle={{
-									backgroundColor: chartTheme.tooltipBg,
-									border: `1px solid ${chartTheme.tooltipBorder}`,
-									borderRadius: "8px",
-									boxShadow: chartTheme.tooltipShadow,
-								}}
-								itemStyle={{ color: chartTheme.tooltipRow }}
-								labelStyle={{ color: chartTheme.tooltipLabel }}
-								formatter={(value: any) => [
-									`$${Number(value || 0).toFixed(4)}`,
-									"Cost",
-								]}
-							/>
-							<Legend />
-						</PieChart>
+							</BarChart>
 						</ResponsiveContainer>
 					</ClientChartMount>
 				</div>
@@ -87,38 +100,37 @@ export const DistributionCharts = ({
 						Request Kind Distribution
 					</h2>
 				</div>
-				<div className="h-[300px] w-full min-w-0">
+				<div className="h-[160px] w-full min-w-0">
 					<ClientChartMount className="h-full w-full min-w-0">
 						<ResponsiveContainer width="100%" height="100%" minWidth={0}>
-							<PieChart>
-								<Pie
-									data={usageByKind}
-								cx="50%"
-								cy="50%"
-								innerRadius={60}
-								outerRadius={100}
-								paddingAngle={5}
-								dataKey="value"
+							<BarChart
+								data={kindBarData}
+								layout="vertical"
+								stackOffset="expand"
+								margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
 							>
-								{usageByKind.map((_, index) => (
-									<Cell
-										key={`cell-${index}`}
+								<XAxis type="number" hide />
+								<YAxis type="category" dataKey="name" hide />
+								<Tooltip
+									contentStyle={{
+										backgroundColor: chartTheme.tooltipBg,
+										border: `1px solid ${chartTheme.tooltipBorder}`,
+										borderRadius: "8px",
+										boxShadow: chartTheme.tooltipShadow,
+									}}
+									itemStyle={{ color: chartTheme.tooltipRow }}
+									labelStyle={{ color: chartTheme.tooltipLabel }}
+								/>
+								<Legend verticalAlign="bottom" />
+								{usageByKind.map((k, index) => (
+									<Bar
+										key={k.name}
+										dataKey={k.name}
+										stackId="1"
 										fill={COLORS[index % COLORS.length]}
 									/>
 								))}
-							</Pie>
-							<Tooltip
-								contentStyle={{
-									backgroundColor: chartTheme.tooltipBg,
-									border: `1px solid ${chartTheme.tooltipBorder}`,
-									borderRadius: "8px",
-									boxShadow: chartTheme.tooltipShadow,
-								}}
-								itemStyle={{ color: chartTheme.tooltipRow }}
-								labelStyle={{ color: chartTheme.tooltipLabel }}
-							/>
-							<Legend />
-						</PieChart>
+							</BarChart>
 						</ResponsiveContainer>
 					</ClientChartMount>
 				</div>

@@ -17,6 +17,8 @@ export interface ModelData {
 	p90PromptTokens: number;
 	p50ObservedCostPer1M: number;
 	p90ObservedCostPer1M: number;
+	cacheHitRate: number;
+	sparklineData: { date: string; value: number }[];
 }
 
 export interface ProviderData {

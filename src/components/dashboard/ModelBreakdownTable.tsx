@@ -12,6 +12,7 @@ import {
 	ModelBreakdownRow,
 	SortConfig,
 } from "./types";
+import { LineChart, Line, ResponsiveContainer, YAxis } from "recharts";
 
 interface ModelBreakdownTableProps {
 	sortedModelData: ModelBreakdownRow[];
@@ -100,6 +101,7 @@ export const ModelBreakdownTable = ({
 							{[
 								{ key: "costAgg", label: "Cost" },
 								{ key: "pricePer1MTokens", label: "Price/1M" },
+								{ key: "cacheHitRate", label: "Cache Hit %" },
 								{ key: "input", label: "Input" },
 								{ key: "output", label: "Output" },
 								{ key: "total", label: "Total" },
@@ -126,6 +128,9 @@ export const ModelBreakdownTable = ({
 									</div>
 								</th>
 							))}
+							<th className="py-3 px-4 text-slate-500 dark:text-slate-400 font-medium text-xs text-right w-24">
+								Trend (7d)
+							</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -172,6 +177,9 @@ export const ModelBreakdownTable = ({
 								>
 									{m.hasDocsPrice ? `$${m.pricePer1MTokens.toFixed(2)}` : "N/A"}
 								</td>
+								<td className="py-3 px-4 text-sm text-right font-mono" style={{ color: getScaledColor("cacheHitRate", m.cacheHitRate, summaryData) }}>
+									{m.cacheHitRate > 0 ? `${m.cacheHitRate.toFixed(1)}%` : "0%"}
+								</td>
 								<td
 									className="py-3 px-4 text-sm text-right font-mono"
 									style={{
@@ -195,6 +203,25 @@ export const ModelBreakdownTable = ({
 									}}
 								>
 									{compactNumberFormatter.format(m.total)}
+								</td>
+								<td className="py-3 px-4 h-12 w-24">
+									{m.sparklineData && m.sparklineData.length > 1 ? (
+										<ResponsiveContainer width="100%" height="100%">
+											<LineChart data={m.sparklineData.slice(-7)}>
+												<YAxis domain={["dataMin", "dataMax"]} hide />
+												<Line
+													type="monotone"
+													dataKey="value"
+													stroke="#8b5cf6"
+													strokeWidth={2}
+													dot={false}
+													isAnimationActive={false}
+												/>
+											</LineChart>
+										</ResponsiveContainer>
+									) : (
+										<span className="text-xs text-slate-400">N/A</span>
+									)}
 								</td>
 							</tr>
 						))}

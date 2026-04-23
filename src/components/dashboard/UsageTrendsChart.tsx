@@ -288,7 +288,7 @@ export const UsageTrendsChart = ({
 							name="Total Tokens"
 							stroke={baseSeries[0].color}
 							strokeWidth={baseSeries[0].strokeWidth}
-							dot={{ r: 4, fill: baseSeries[0].color }}
+							dot={false}
 							activeDot={{ r: 6 }}
 							hide={hiddenKeys.includes("totalTokens")}
 						/>
@@ -300,7 +300,7 @@ export const UsageTrendsChart = ({
 							stroke={baseSeries[1].color}
 							strokeWidth={baseSeries[1].strokeWidth}
 							strokeDasharray={baseSeries[1].strokeDasharray}
-							dot={{ r: 3, fill: baseSeries[1].color }}
+							dot={false}
 							activeDot={{ r: 5 }}
 							hide={hiddenKeys.includes("inputWithCacheWrite")}
 						/>
@@ -312,7 +312,7 @@ export const UsageTrendsChart = ({
 							stroke={baseSeries[2].color}
 							strokeWidth={baseSeries[2].strokeWidth}
 							strokeDasharray={baseSeries[2].strokeDasharray}
-							dot={{ r: 3, fill: baseSeries[2].color }}
+							dot={false}
 							activeDot={{ r: 5 }}
 							hide={hiddenKeys.includes("outputTokens")}
 						/>
@@ -323,7 +323,7 @@ export const UsageTrendsChart = ({
 							name="Daily Cost ($)"
 							stroke={baseSeries[3].color}
 							strokeWidth={baseSeries[3].strokeWidth}
-							dot={{ r: 4, fill: baseSeries[3].color }}
+							dot={false}
 							activeDot={{ r: 6 }}
 							hide={hiddenKeys.includes("cost")}
 						/>
@@ -337,7 +337,7 @@ export const UsageTrendsChart = ({
 								stroke={series.color}
 								strokeWidth={2}
 								strokeDasharray={series.strokeDasharray}
-								dot={{ r: 2, fill: series.color }}
+								dot={false}
 								activeDot={{ r: 4 }}
 								hide={hiddenKeys.includes(series.key)}
 							/>

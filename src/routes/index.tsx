@@ -6,6 +6,7 @@ import Papa from "papaparse";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 // Components
+import { ActionableInsights } from "../components/dashboard/ActionableInsights";
 import { DashboardHeader } from "../components/dashboard/DashboardHeader";
 import { DistributionCharts } from "../components/dashboard/DistributionCharts";
 import { EmptyState } from "../components/dashboard/EmptyState";
@@ -298,6 +299,7 @@ function Dashboard() {
 						costSamples: [],
 						totalTokenSamples: [],
 						observedCostPer1MSamples: [],
+						sparklineMap: {},
 					};
 				const tokenTotals = getTokenTotals(row);
 				const rowCost = Number(row["Cost"]) || 0;
@@ -314,6 +316,12 @@ function Dashboard() {
 					acc[model].observedCostPer1MSamples.push(
 						(rowCost / tokenTotals.totalTokens) * 1_000_000
 					);
+				}
+				const dateStr = row.Date instanceof Date
+					? row.Date.toISOString().split("T")[0]
+					: String(row.Date).split("T")[0];
+				if (dateStr) {
+					acc[model].sparklineMap[dateStr] = (acc[model].sparklineMap[dateStr] || 0) + rowCost;
 				}
 				return acc;
 			}, {})
@@ -353,6 +361,11 @@ function Dashboard() {
 					},
 					docsPricing
 				);
+				const totalInputTokens = m.input + m.inputWithCacheWrite + m.cacheRead;
+				const cacheHitRate = totalInputTokens > 0 ? (m.cacheRead / totalInputTokens) * 100 : 0;
+				const sparklineData = Object.entries(m.sparklineMap || {})
+					.map(([date, value]) => ({ date, value: value as number }))
+					.sort((a, b) => a.date.localeCompare(b.date));
 
 				return {
 					...m,
@@ -368,6 +381,8 @@ function Dashboard() {
 					p90PromptTokens,
 					p50ObservedCostPer1M,
 					p90ObservedCostPer1M,
+					cacheHitRate,
+					sparklineData,
 				};
 			})
 			.filter((m: any) => m.total > 0 || m.cost > 0);
@@ -689,6 +704,12 @@ function Dashboard() {
 				format: (v: number) => `$${v.toFixed(2)}`,
 			},
 			{
+				key: "cacheHitRate",
+				label: "Cache Hit Rate",
+				unit: "%",
+				format: (v: number) => `${v.toFixed(1)}%`,
+			},
+			{
 				key: "input",
 				label: "Input Tokens",
 				unit: "",
@@ -939,6 +960,7 @@ function Dashboard() {
 				<EmptyState />
 			) : (
 				<main className="w-full space-y-8">
+					<ActionableInsights modelData={processedData.modelData} />
 					{usageEfficiencySummary && (
 						<UsageEfficiencySummary summary={usageEfficiencySummary} />
 					)}
