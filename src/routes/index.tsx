@@ -469,7 +469,7 @@ function Dashboard() {
 
 		const topModelNames = [...modelData]
 			.sort((a: any, b: any) => b.cost - a.cost)
-			.slice(0, 8)
+			.slice(0, 15)
 			.map((m: any) => m.name as string);
 
 		const modelSeries = topModelNames.map((name) => {

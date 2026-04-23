@@ -197,6 +197,7 @@ export const ModelSpendTokenCharts = ({
 										strokeWidth={2}
 										dot={{ r: 2 }}
 										activeDot={{ r: 4 }}
+										stackId="1"
 									/>
 								))}
 							</AreaChart>
@@ -272,6 +273,7 @@ export const ModelSpendTokenCharts = ({
 										strokeWidth={2}
 										dot={{ r: 2 }}
 										activeDot={{ r: 4 }}
+										stackId="1"
 									/>
 								))}
 							</AreaChart>
