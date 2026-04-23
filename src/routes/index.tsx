@@ -181,7 +181,7 @@ function Dashboard() {
 	const allModels = useMemo(() => {
 		if (!data || !Array.isArray(data)) return [];
 		const models = Array.from(
-			new Set(data.map((row) => row.Model).filter(Boolean))
+			new Set(data.map((row) => row.Model ? String(row.Model).trim() : null).filter(Boolean))
 		) as string[];
 		return models.sort();
 	}, [data]);
@@ -263,11 +263,12 @@ function Dashboard() {
 		if (!data || !Array.isArray(data)) return null;
 
 		const validData = data.filter((row) => {
-			const isValid = row.Date && row.Model;
+			const rowModel = row.Model ? String(row.Model).trim() : undefined;
+			const isValid = row.Date && rowModel;
 			if (!isValid) return false;
 
 			// Model Filter
-			if (selectedModels.length > 0 && !selectedModels.includes(row.Model)) {
+			if (selectedModels.length > 0 && !selectedModels.includes(rowModel)) {
 				return false;
 			}
 
@@ -285,7 +286,7 @@ function Dashboard() {
 
 		const modelData = Object.values(
 			validData.reduce((acc: any, row) => {
-				const model = row.Model || "Unknown";
+				const model = row.Model ? String(row.Model).trim() : "Unknown";
 				if (!acc[model])
 					acc[model] = {
 						name: model,
@@ -413,8 +414,8 @@ function Dashboard() {
 		const userTotals = new Map<string, { cost: number; tokens: number }>();
 
 		validData.forEach((row) => {
-			const provider = getProviderName(row.Model || "Unknown");
-			const user = row.User || "Unknown";
+			const provider = getProviderName(row.Model ? String(row.Model).trim() : "Unknown");
+			const user = row.User ? String(row.User).trim() : "Unknown";
 			const cost = Number(row.Cost) || 0;
 			const totalTokens = Number(row["Total Tokens"]) || 0;
 
@@ -506,7 +507,7 @@ function Dashboard() {
 					Number(row["Input (w/ Cache Write)"]) || 0;
 				acc[date].outputTokens += Number(row["Output Tokens"]) || 0;
 
-				const provider = getProviderName(row.Model || "Unknown");
+				const provider = getProviderName(row.Model ? String(row.Model).trim() : "Unknown");
 				const providerSeriesEntry = providerSeriesMap.get(provider);
 				if (providerSeriesEntry) {
 					acc[date][providerSeriesEntry.tokensKey] =
@@ -517,7 +518,7 @@ function Dashboard() {
 						(Number(row.Cost) || 0);
 				}
 
-				const user = row.User || "Unknown";
+				const user = row.User ? String(row.User).trim() : "Unknown";
 				const userSeriesEntry = userSeriesMap.get(user);
 				if (userSeriesEntry) {
 					acc[date][userSeriesEntry.tokensKey] =
@@ -528,7 +529,7 @@ function Dashboard() {
 						(Number(row.Cost) || 0);
 				}
 
-				const modelName = row.Model || "Unknown";
+				const modelName = row.Model ? String(row.Model).trim() : "Unknown";
 				const modelSeriesEntry = modelSeriesMap.get(modelName);
 				if (modelSeriesEntry) {
 					acc[date][modelSeriesEntry.tokensKey] =
@@ -560,7 +561,7 @@ function Dashboard() {
 
 		const providerData = Object.values(
 			validData.reduce((acc: any, row) => {
-				const provider = getProviderName(row.Model || "Unknown");
+				const provider = getProviderName(row.Model ? String(row.Model).trim() : "Unknown");
 				if (!acc[provider])
 					acc[provider] = {
 						name: provider,
@@ -820,8 +821,9 @@ function Dashboard() {
 		if (!Array.isArray(data) || data.length === 0) return null;
 
 		const baseRows = data.filter((row) => {
-			if (!row?.Date || !row?.Model) return false;
-			if (selectedModels.length > 0 && !selectedModels.includes(row.Model)) {
+			const rowModel = row.Model ? String(row.Model).trim() : undefined;
+			if (!row?.Date || !rowModel) return false;
+			if (selectedModels.length > 0 && !selectedModels.includes(rowModel)) {
 				return false;
 			}
 			return true;
@@ -881,7 +883,7 @@ function Dashboard() {
 				const tokenTotals = getTokenTotals(row);
 				const totalTokens = tokenTotals.totalTokens;
 				const rowCost = Number(row.Cost) || 0;
-				const provider = getProviderName(row.Model || "Unknown");
+				const provider = getProviderName(row.Model ? String(row.Model).trim() : "Unknown");
 
 				tokens += totalTokens;
 				cost += rowCost;
