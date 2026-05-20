@@ -22,27 +22,37 @@ export const getProviderName = (modelName: string) => {
 	return "Other";
 };
 
-export const getModelIcon = (modelName: string) => {
+/** Single asset, or separate light/dark assets (light = for default / light UI). */
+export type ModelIconAsset =
+	| { mode: "single"; src: string }
+	| { mode: "theme"; light: string; dark: string };
+
+export const getModelIconAsset = (modelName: string): ModelIconAsset | null => {
 	const name = modelName.toLowerCase();
-	if (name.includes("deepseek")) return "/deepseek.svg";
-	if (name.includes("gemini")) return "/gemini.svg";
+	if (name.includes("deepseek")) return { mode: "single", src: "/deepseek.svg" };
+	if (name.includes("gemini")) return { mode: "single", src: "/gemini.svg" };
 	if (name.includes("claude") || name.includes("anthropic"))
-		return "/anthropic.svg";
+		return { mode: "single", src: "/anthropic.svg" };
 	if (
 		name.includes("gpt") ||
 		name.includes("openai") ||
 		name.includes("o1") ||
 		name.includes("o3")
 	)
-		return "/openAi.dark.svg";
-	if (name.includes("grok")) return "/grok.dark.png";
+		return { mode: "theme", light: "/openAi.svg", dark: "/openAi.dark.svg" };
+	if (name.includes("grok"))
+		return { mode: "theme", light: "/grok.light.png", dark: "/grok.dark.png" };
 	if (
 		name.includes("cursor") ||
 		name.includes("composer") ||
 		name.includes("agent_review") ||
 		name.includes("auto")
 	)
-		return "/cursor.dark.png";
+		return {
+			mode: "theme",
+			light: "/cursor.light.png",
+			dark: "/cursor.dark.png",
+		};
 	return null;
 };
 

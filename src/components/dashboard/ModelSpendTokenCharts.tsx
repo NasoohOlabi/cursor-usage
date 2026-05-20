@@ -1,8 +1,6 @@
 import { useMemo } from "react";
-import { DollarSign, LineChart as LineChartIcon } from "lucide-react";
 import {
 	CartesianGrid,
-	Legend,
 	Area,
 	AreaChart,
 	ResponsiveContainer,
@@ -13,12 +11,34 @@ import {
 import { useTheme } from "../ThemeContext";
 import { ClientChartMount } from "./ClientChartMount";
 import { getChartTheme } from "./chartTheme";
+import {
+	DAILY_STACK_CHART_HEIGHT_PX,
+	DAILY_STACK_SYNC_ID,
+	DAILY_STACK_Y_AXIS_WIDTH,
+	dailyStackChartMargin,
+	dailyStackMarginsBottom,
+	dailyStackMarginsMiddle,
+	dailyStackPaneTitleClass,
+	dailyStackTooltipProps,
+	dailyStackXAxisProps,
+	DAILY_STACK_X_AXIS_RESERVE_PX,
+	dailyStackYAxisTick,
+	pickXAxisTicks,
+} from "./chartLayout";
 import { ModelTimeseriesSeries, TimeseriesData } from "./types";
 import { COLORS } from "./utils";
 
 interface ModelSpendTokenChartsProps {
 	timeseries: TimeseriesData[];
 	modelSeries: ModelTimeseriesSeries[];
+	/** When true, omit outer card chrome (parent supplies one border/padding). */
+	embedded?: boolean;
+	stackMode?: boolean;
+	syncId?: string;
+	xTicks?: string[];
+	chartHeight?: number;
+	yAxisWidth?: number;
+	part?: "full" | "charts" | "legend";
 }
 
 const shortModelName = (name: string) => name.split("/").pop() || name;
@@ -88,7 +108,7 @@ function ModelLineTooltip({
 			{rows.length === 0 ? (
 				<p className="text-xs text-slate-500 dark:text-slate-500">No non-zero values</p>
 			) : (
-				<ul className="max-h-[min(320px,50vh)] space-y-1.5 overflow-y-auto pr-1">
+				<ul className="max-h-[min(240px,40vh)] space-y-1.5 overflow-y-auto pr-1">
 					{rows.map((it, i) => (
 						<li
 							key={`${String(it.dataKey ?? "")}-${i}`}
@@ -122,162 +142,254 @@ function ModelLineTooltip({
 export const ModelSpendTokenCharts = ({
 	timeseries,
 	modelSeries,
+	embedded = false,
+	stackMode = false,
+	syncId = DAILY_STACK_SYNC_ID,
+	xTicks: xTicksProp,
+	chartHeight = DAILY_STACK_CHART_HEIGHT_PX,
+	yAxisWidth = DAILY_STACK_Y_AXIS_WIDTH,
+	part = "full",
 }: ModelSpendTokenChartsProps) => {
 	const { isDark } = useTheme();
 	const chartTheme = useMemo(() => getChartTheme(isDark), [isDark]);
 
+	const xTicks = useMemo(
+		() => xTicksProp ?? pickXAxisTicks(timeseries.map((d) => d.name)),
+		[timeseries, xTicksProp],
+	);
+
 	if (!modelSeries.length || !timeseries.length) return null;
 
-	return (
-		<div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-			<div className="rounded-2xl border border-slate-200/90 bg-white/70 p-6 shadow-sm transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-700">
-				<div className="mb-2 flex items-center gap-3">
-					<div className="p-2 bg-emerald-500/10 rounded-lg">
-						<DollarSign className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
-					</div>
-					<div>
-						<h2 className="text-xl font-bold text-slate-900 dark:text-white">
-							Spending by Model (daily)
-						</h2>
-						<p className="mt-0.5 text-xs text-slate-500 dark:text-slate-500">
-							Top {modelSeries.length} models by total spend in range
-						</p>
-					</div>
-				</div>
-				<div className="h-[380px] w-full min-w-0 mt-4">
-					<ClientChartMount className="h-full w-full min-w-0">
-						<ResponsiveContainer width="100%" height="100%" minWidth={0}>
-							<AreaChart
-								data={timeseries}
-								margin={{ bottom: 56, left: 8, right: 8, top: 8 }}
-							>
-								<CartesianGrid
-									strokeDasharray="3 3"
-									stroke={chartTheme.gridStroke}
-								/>
-								<XAxis
-									dataKey="name"
-									stroke={chartTheme.axisStroke}
-									tick={{ fill: chartTheme.tickFill, fontSize: 10 }}
-									angle={-40}
-									textAnchor="end"
-									height={72}
-									interval="preserveStartEnd"
-								/>
-								<YAxis
-									stroke={chartTheme.axisStroke}
-									tick={{ fill: chartTheme.tickFill, fontSize: 11 }}
-									tickFormatter={formatCostAxis}
-								/>
-								<Tooltip
-									content={(props) => (
-										<ModelLineTooltip
-											active={props.active}
-											payload={props.payload as TooltipPayloadEntry[]}
-											label={props.label}
-											variant="cost"
-										/>
-									)}
-								/>
-								<Legend
-									wrapperStyle={{ fontSize: 11 }}
-									formatter={(value) => (
-										<span className="text-slate-700 dark:text-slate-300">{value}</span>
-									)}
-								/>
-								{modelSeries.map((series, index) => (
-									<Area
-										key={series.costKey}
-										type="monotone"
-										dataKey={series.costKey}
-										name={shortModelName(series.name)}
-										stroke={COLORS[index % COLORS.length]}
-										fill={COLORS[index % COLORS.length]}
-										fillOpacity={0.1}
-										strokeWidth={2}
-										dot={{ r: 2 }}
-										activeDot={{ r: 4 }}
-									/>
-								))}
-							</AreaChart>
-						</ResponsiveContainer>
-					</ClientChartMount>
-				</div>
-			</div>
+	const marginTopChart = stackMode
+		? dailyStackChartMargin
+		: dailyStackMarginsMiddle;
+	const marginBottomChart = stackMode
+		? dailyStackChartMargin
+		: dailyStackMarginsBottom;
 
-			<div className="rounded-2xl border border-slate-200/90 bg-white/70 p-6 shadow-sm transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-700">
-				<div className="mb-2 flex items-center gap-3">
-					<div className="p-2 bg-violet-500/10 rounded-lg">
-						<LineChartIcon className="h-6 w-6 text-violet-500 dark:text-violet-400" />
-					</div>
-					<div>
-						<h2 className="text-xl font-bold text-slate-900 dark:text-white">
-							Token use by Model (daily)
-						</h2>
-						<p className="mt-0.5 text-xs text-slate-500 dark:text-slate-500">
-							Same models as spending chart
-						</p>
-					</div>
-				</div>
-				<div className="h-[380px] w-full min-w-0 mt-4">
-					<ClientChartMount className="h-full w-full min-w-0">
-						<ResponsiveContainer width="100%" height="100%" minWidth={0}>
-							<AreaChart
-								data={timeseries}
-								margin={{ bottom: 56, left: 8, right: 8, top: 8 }}
+	const xAxisTickProps = {
+		fill: chartTheme.tickFill,
+		fontSize: 10,
+	} as const;
+
+	const shellClass =
+		embedded || stackMode
+			? "w-full"
+			: "w-full rounded-2xl border border-slate-200/90 bg-white/70 p-6 shadow-sm transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-700";
+
+	const yAxisTick = {
+		fill: chartTheme.tickFill,
+		...dailyStackYAxisTick,
+	};
+
+	const showCharts = part === "full" || part === "charts";
+	const showLegend = part === "full" || part === "legend";
+
+	if (part === "legend") {
+		return (
+			<div>
+				<span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-500">
+					Models
+				</span>
+				<ul className="mt-1.5 space-y-1 overflow-y-auto pr-1 text-xs">
+					{modelSeries.map((series, index) => {
+						const color = COLORS[index % COLORS.length];
+						const label = shortModelName(series.name);
+						return (
+							<li
+								key={series.costKey}
+								className="flex min-w-0 items-center gap-2"
 							>
-								<CartesianGrid
-									strokeDasharray="3 3"
-									stroke={chartTheme.gridStroke}
+								<span
+									className="h-2 w-2 shrink-0 rounded-full border border-slate-300 dark:border-slate-600"
+									style={{ backgroundColor: color }}
 								/>
-								<XAxis
-									dataKey="name"
-									stroke={chartTheme.axisStroke}
-									tick={{ fill: chartTheme.tickFill, fontSize: 10 }}
-									angle={-40}
-									textAnchor="end"
-									height={72}
-									interval="preserveStartEnd"
-								/>
-								<YAxis
-									stroke={chartTheme.axisStroke}
-									tick={{ fill: chartTheme.tickFill, fontSize: 11 }}
-									tickFormatter={formatYAxisTokens}
-								/>
-								<Tooltip
-									content={(props) => (
-										<ModelLineTooltip
-											active={props.active}
-											payload={props.payload as TooltipPayloadEntry[]}
-											label={props.label}
-											variant="tokens"
+								<span
+									className="min-w-0 truncate text-slate-700 dark:text-slate-300"
+									title={series.name}
+								>
+									{label}
+								</span>
+							</li>
+						);
+					})}
+				</ul>
+			</div>
+		);
+	}
+
+	return (
+		<div className={shellClass}>
+			<div
+				className={
+					part === "full"
+						? "flex flex-col gap-2 min-[520px]:flex-row min-[520px]:items-stretch min-[520px]:gap-3"
+						: "flex flex-col gap-2"
+				}
+			>
+				{showCharts && (
+				<div className="min-w-0 flex-1 flex flex-col gap-2">
+					<div className="w-full min-w-0">
+						<h3 className={dailyStackPaneTitleClass}>Spending by model</h3>
+						<div
+							className="w-full min-w-0 shrink-0 overflow-visible"
+							style={{ height: chartHeight }}
+						>
+							<ClientChartMount className="h-full w-full min-w-0 overflow-visible">
+								<ResponsiveContainer width="100%" height="100%" minWidth={0}>
+									<AreaChart
+										syncId={syncId}
+										data={timeseries}
+										margin={marginTopChart}
+									>
+										<CartesianGrid
+											strokeDasharray="3 3"
+											stroke={chartTheme.gridStroke}
 										/>
-									)}
-								/>
-								<Legend
-									wrapperStyle={{ fontSize: 11 }}
-									formatter={(value) => (
-										<span className="text-slate-700 dark:text-slate-300">{value}</span>
-									)}
-								/>
-								{modelSeries.map((series, index) => (
-									<Area
-										key={series.tokensKey}
-										type="monotone"
-										dataKey={series.tokensKey}
-										name={shortModelName(series.name)}
-										stroke={COLORS[index % COLORS.length]}
-										fill={COLORS[index % COLORS.length]}
-										fillOpacity={0.1}
-										strokeWidth={2}
-										dot={{ r: 2 }}
-										activeDot={{ r: 4 }}
-									/>
-								))}
-							</AreaChart>
-						</ResponsiveContainer>
-					</ClientChartMount>
+										<XAxis
+											dataKey="name"
+											hide
+											ticks={xTicks}
+											stroke={chartTheme.axisStroke}
+											tick={xAxisTickProps}
+											{...dailyStackXAxisProps}
+										/>
+										<YAxis
+											width={yAxisWidth}
+											stroke={chartTheme.axisStroke}
+											tick={yAxisTick}
+											tickFormatter={formatCostAxis}
+										/>
+										<Tooltip
+											{...(stackMode ? dailyStackTooltipProps : {})}
+											content={(props) => (
+												<ModelLineTooltip
+													active={props.active}
+													payload={props.payload as TooltipPayloadEntry[]}
+													label={props.label}
+													variant="cost"
+												/>
+											)}
+										/>
+										{modelSeries.map((series, index) => (
+											<Area
+												key={series.costKey}
+												type="monotone"
+												dataKey={series.costKey}
+												name={shortModelName(series.name)}
+												stroke={COLORS[index % COLORS.length]}
+												fill={COLORS[index % COLORS.length]}
+												fillOpacity={0.72}
+												stackId="cost"
+												strokeWidth={2}
+												dot={false}
+												activeDot={{ r: 4 }}
+											/>
+										))}
+									</AreaChart>
+								</ResponsiveContainer>
+							</ClientChartMount>
+						</div>
+					</div>
+
+					<div className="w-full min-w-0">
+						<h3 className={dailyStackPaneTitleClass}>Token use by model</h3>
+						<div
+							className="w-full min-w-0 shrink-0 overflow-visible"
+							style={{ height: chartHeight }}
+						>
+							<ClientChartMount className="h-full w-full min-w-0 overflow-visible">
+								<ResponsiveContainer width="100%" height="100%" minWidth={0}>
+									<AreaChart
+										syncId={syncId}
+										data={timeseries}
+										margin={marginBottomChart}
+									>
+										<CartesianGrid
+											strokeDasharray="3 3"
+											stroke={chartTheme.gridStroke}
+										/>
+										<XAxis
+											dataKey="name"
+											stroke={chartTheme.axisStroke}
+											tick={xAxisTickProps}
+											angle={stackMode ? -45 : -40}
+											textAnchor="end"
+											height={
+												stackMode ? DAILY_STACK_X_AXIS_RESERVE_PX : 60
+											}
+											ticks={xTicks}
+											{...dailyStackXAxisProps}
+										/>
+										<YAxis
+											width={yAxisWidth}
+											stroke={chartTheme.axisStroke}
+											tick={yAxisTick}
+											tickFormatter={formatYAxisTokens}
+										/>
+										<Tooltip
+											{...(stackMode ? dailyStackTooltipProps : {})}
+											content={(props) => (
+												<ModelLineTooltip
+													active={props.active}
+													payload={props.payload as TooltipPayloadEntry[]}
+													label={props.label}
+													variant="tokens"
+												/>
+											)}
+										/>
+										{modelSeries.map((series, index) => (
+											<Area
+												key={series.tokensKey}
+												type="monotone"
+												dataKey={series.tokensKey}
+												name={shortModelName(series.name)}
+												stroke={COLORS[index % COLORS.length]}
+												fill={COLORS[index % COLORS.length]}
+												fillOpacity={0.72}
+												stackId="tokens"
+												strokeWidth={2}
+												dot={false}
+												activeDot={{ r: 4 }}
+											/>
+										))}
+									</AreaChart>
+								</ResponsiveContainer>
+							</ClientChartMount>
+						</div>
+					</div>
 				</div>
+				)}
+
+				{part === "full" && showLegend && (
+				<div className="shrink-0 border-t border-slate-200/80 pt-2 min-[520px]:w-48 min-[520px]:border-l min-[520px]:border-t-0 min-[520px]:pl-3 min-[520px]:pt-0 dark:border-slate-800">
+					<span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-500">
+						Models
+					</span>
+					<ul
+						className="mt-1.5 max-h-[min(460px,70vh)] space-y-1 overflow-y-auto pr-1 text-xs"
+					>
+						{modelSeries.map((series, index) => {
+							const color = COLORS[index % COLORS.length];
+							const label = shortModelName(series.name);
+							return (
+								<li key={series.costKey} className="flex min-w-0 items-center gap-2">
+									<span
+										className="h-2 w-2 shrink-0 rounded-full border border-slate-300 dark:border-slate-600"
+										style={{ backgroundColor: color }}
+									/>
+									<span
+										className="min-w-0 truncate text-slate-700 dark:text-slate-300"
+										title={series.name}
+									>
+										{label}
+									</span>
+								</li>
+							);
+						})}
+					</ul>
+				</div>
+				)}
 			</div>
 		</div>
 	);

@@ -62,6 +62,14 @@ export interface ModelTimeseriesSeries {
 	costKey: string;
 }
 
+/** Blended average: sum(cost) / sum(tokens) for the filtered dataset. */
+export interface GlobalUsageTotals {
+	totalTokens: number;
+	totalCost: number;
+	/** (totalCost / totalTokens) * 1e6 when totalTokens > 0 */
+	averagePricePer1MTokens: number;
+}
+
 export interface ProcessedData {
 	modelData: ModelData[];
 	usageByKind: UsageByKind[];
@@ -69,6 +77,7 @@ export interface ProcessedData {
 	providerData: ProviderData[];
 	timeseriesMeta: TimeseriesSeriesMeta[];
 	modelSeries: ModelTimeseriesSeries[];
+	globalUsage: GlobalUsageTotals;
 }
 
 export interface MetricSummary {

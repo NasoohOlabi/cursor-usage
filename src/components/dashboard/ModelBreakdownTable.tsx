@@ -12,7 +12,10 @@ import {
 	ModelBreakdownRow,
 	SortConfig,
 } from "./types";
-import { LineChart, Line, ResponsiveContainer, YAxis } from "recharts";
+import { LineChart, Line, YAxis } from "recharts";
+
+const SPARKLINE_WIDTH = 96;
+const SPARKLINE_HEIGHT = 48;
 
 interface ModelBreakdownTableProps {
 	sortedModelData: ModelBreakdownRow[];
@@ -38,14 +41,14 @@ export const ModelBreakdownTable = ({
 	});
 
 	return (
-		<div className="bg-white/70 dark:bg-slate-900/50 border border-slate-200/90 dark:border-slate-800 rounded-2xl p-6 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-sm dark:shadow-none">
-			<div className="flex items-center justify-between gap-3 mb-6">
-				<div className="flex items-center gap-3">
-					<div className="p-2 bg-indigo-500/10 rounded-lg">
-						<Activity className="text-indigo-500 dark:text-indigo-400 w-6 h-6" />
+		<div className="bg-white/70 dark:bg-slate-900/50 border border-slate-200/90 dark:border-slate-800 rounded-xl p-4 hover:border-slate-300 dark:hover:border-slate-700 transition-colors shadow-sm dark:shadow-none">
+			<div className="flex items-center justify-between gap-2 mb-3">
+				<div className="flex items-center gap-2">
+					<div className="p-1.5 rounded-md bg-indigo-100/90 ring-1 ring-inset ring-indigo-200/80 dark:bg-indigo-500/10 dark:ring-0">
+						<Activity className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
 					</div>
-					<h2 className="text-xl font-bold text-slate-900 dark:text-white">
-						Model Performance Breakdown
+					<h2 className="text-sm font-bold text-slate-900 dark:text-white">
+						Model breakdown
 					</h2>
 				</div>
 				<div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
@@ -86,6 +89,26 @@ export const ModelBreakdownTable = ({
 									Model
 									<span className="opacity-0 group-hover:opacity-100 transition-opacity">
 										{sortConfig.key === "name" &&
+										sortConfig.direction ? (
+											sortConfig.direction === "asc" ? (
+												<ChevronUp size={14} />
+											) : (
+												<ChevronDown size={14} />
+											)
+										) : (
+											<ArrowUpDown size={14} />
+										)}
+									</span>
+								</div>
+							</th>
+							<th
+								className="py-3 px-4 text-slate-500 dark:text-slate-400 font-medium text-xs text-right cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group"
+								onClick={() => requestSort("count")}
+							>
+								<div className="flex items-center justify-end gap-2">
+									Uses
+									<span>
+										{sortConfig.key === "count" &&
 										sortConfig.direction ? (
 											sortConfig.direction === "asc" ? (
 												<ChevronUp size={14} />
@@ -151,6 +174,9 @@ export const ModelBreakdownTable = ({
 										{m.name.split("/").pop()}
 									</div>
 								</td>
+								<td className="py-3 px-4 text-sm text-right font-mono tabular-nums text-slate-700 dark:text-slate-300">
+									{m.count.toLocaleString()}
+								</td>
 								<td
 									className="py-3 px-4 text-sm text-right font-mono"
 									style={{
@@ -206,19 +232,21 @@ export const ModelBreakdownTable = ({
 								</td>
 								<td className="py-3 px-4 h-12 w-24">
 									{m.sparklineData && m.sparklineData.length > 1 ? (
-										<ResponsiveContainer width="100%" height="100%">
-											<LineChart data={m.sparklineData.slice(-7)}>
-												<YAxis domain={["dataMin", "dataMax"]} hide />
-												<Line
-													type="monotone"
-													dataKey="value"
-													stroke="#8b5cf6"
-													strokeWidth={2}
-													dot={false}
-													isAnimationActive={false}
-												/>
-											</LineChart>
-										</ResponsiveContainer>
+										<LineChart
+											width={SPARKLINE_WIDTH}
+											height={SPARKLINE_HEIGHT}
+											data={m.sparklineData.slice(-7)}
+										>
+											<YAxis domain={["dataMin", "dataMax"]} hide />
+											<Line
+												type="monotone"
+												dataKey="value"
+												stroke="#8b5cf6"
+												strokeWidth={2}
+												dot={false}
+												isAnimationActive={false}
+											/>
+										</LineChart>
 									) : (
 										<span className="text-xs text-slate-400">N/A</span>
 									)}

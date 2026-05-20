@@ -6,18 +6,14 @@ import Papa from "papaparse";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 // Components
-import { ActionableInsights } from "../components/dashboard/ActionableInsights";
 import { DashboardHeader } from "../components/dashboard/DashboardHeader";
 import { DistributionCharts } from "../components/dashboard/DistributionCharts";
 import { EmptyState } from "../components/dashboard/EmptyState";
 import { FilterModal } from "../components/dashboard/FilterModal";
 import { ModelBreakdownTable } from "../components/dashboard/ModelBreakdownTable";
-import { ModelSpendTokenCharts } from "../components/dashboard/ModelSpendTokenCharts";
 import { ProviderComparison } from "../components/dashboard/ProviderComparison";
+import { DailyUsageChartsCard } from "../components/dashboard/DailyUsageChartsCard";
 import { SummaryCards } from "../components/dashboard/SummaryCards";
-import { TokenEfficiencyPValueChart } from "../components/dashboard/TokenEfficiencyPValueChart";
-import { UsageEfficiencySummary } from "../components/dashboard/UsageEfficiencySummary";
-import { UsageTrendsChart } from "../components/dashboard/UsageTrendsChart";
 
 // Utils & Types
 import {
@@ -110,12 +106,6 @@ const getCursorDocsPricing = createServerFn({ method: "GET" }).handler(async () 
 
 	throw new Error("Unable to fetch pricing from Cursor docs");
 });
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-const parseDateOnly = (value: string) => new Date(`${value}T00:00:00Z`);
-
-const formatDateOnly = (date: Date) => date.toISOString().slice(0, 10);
 
 // --- Route Definition ---
 
@@ -626,6 +616,21 @@ function Dashboard() {
 				: []),
 		];
 
+		let globalTotalTokens = 0;
+		let globalTotalCost = 0;
+		for (const row of validData) {
+			globalTotalTokens += getTokenTotals(row).totalTokens;
+			globalTotalCost += Number(row.Cost) || 0;
+		}
+		const globalUsage = {
+			totalTokens: globalTotalTokens,
+			totalCost: globalTotalCost,
+			averagePricePer1MTokens:
+				globalTotalTokens > 0
+					? (globalTotalCost / globalTotalTokens) * 1_000_000
+					: 0,
+		};
+
 		return {
 			modelData,
 			usageByKind,
@@ -633,6 +638,7 @@ function Dashboard() {
 			providerData,
 			timeseriesMeta,
 			modelSeries,
+			globalUsage,
 		};
 	}, [data, selectedModels, fromDate, toDate, sanitizeSeriesKey, docsPricing]) as
 		| ProcessedData
@@ -817,115 +823,6 @@ function Dashboard() {
 			.filter(Boolean) as MetricSummary[];
 	}, [processedData?.modelData]);
 
-	const usageEfficiencySummary = useMemo(() => {
-		if (!Array.isArray(data) || data.length === 0) return null;
-
-		const baseRows = data.filter((row) => {
-			const rowModel = row.Model ? String(row.Model).trim() : undefined;
-			if (!row?.Date || !rowModel) return false;
-			if (selectedModels.length > 0 && !selectedModels.includes(rowModel)) {
-				return false;
-			}
-			return true;
-		});
-		if (baseRows.length === 0) return null;
-
-		const allDates = baseRows
-			.map((row) =>
-				row.Date instanceof Date
-					? row.Date.toISOString().split("T")[0]
-					: String(row.Date).split("T")[0]
-			)
-			.filter(Boolean)
-			.sort();
-		if (allDates.length === 0) return null;
-
-		let currentStart = fromDate;
-		let currentEnd = toDate;
-		if (!currentStart || !currentEnd) {
-			currentEnd = allDates[allDates.length - 1];
-			currentStart = formatDateOnly(
-				new Date(parseDateOnly(currentEnd).getTime() - 29 * DAY_MS)
-			);
-		}
-
-		if (currentStart > currentEnd) {
-			[currentStart, currentEnd] = [currentEnd, currentStart];
-		}
-
-		const currentStartDate = parseDateOnly(currentStart);
-		const currentEndDate = parseDateOnly(currentEnd);
-		const windowDays =
-			Math.floor((currentEndDate.getTime() - currentStartDate.getTime()) / DAY_MS) +
-			1;
-		if (windowDays <= 0) return null;
-
-		const previousEndDate = new Date(currentStartDate.getTime() - DAY_MS);
-		const previousStartDate = new Date(
-			previousEndDate.getTime() - (windowDays - 1) * DAY_MS
-		);
-		const previousStart = formatDateOnly(previousStartDate);
-		const previousEnd = formatDateOnly(previousEndDate);
-
-		const aggregateWindow = (start: string, end: string) => {
-			let tokens = 0;
-			let cost = 0;
-			let requests = 0;
-			const providerTokens = new Map<string, number>();
-
-			for (const row of baseRows) {
-				const rowDate =
-					row.Date instanceof Date
-						? row.Date.toISOString().split("T")[0]
-						: String(row.Date).split("T")[0];
-				if (!rowDate || rowDate < start || rowDate > end) continue;
-
-				const tokenTotals = getTokenTotals(row);
-				const totalTokens = tokenTotals.totalTokens;
-				const rowCost = Number(row.Cost) || 0;
-				const provider = getProviderName(row.Model ? String(row.Model).trim() : "Unknown");
-
-				tokens += totalTokens;
-				cost += rowCost;
-				requests += 1;
-				providerTokens.set(provider, (providerTokens.get(provider) || 0) + totalTokens);
-			}
-
-			const blendedCostPer1M = tokens > 0 ? (cost / tokens) * 1_000_000 : 0;
-			const cheapTokens =
-				(providerTokens.get("Google") || 0) + (providerTokens.get("xAI") || 0);
-			const cheapTokenSharePct = tokens > 0 ? (cheapTokens / tokens) * 100 : 0;
-
-			return { tokens, cost, requests, blendedCostPer1M, cheapTokenSharePct };
-		};
-
-		const current = aggregateWindow(currentStart, currentEnd);
-		const previous = aggregateWindow(previousStart, previousEnd);
-
-		const deltaPct = (currentValue: number, previousValue: number) => {
-			if (previousValue === 0) return null;
-			return ((currentValue - previousValue) / previousValue) * 100;
-		};
-
-		return {
-			currentLabel: `${currentStart} to ${currentEnd}`,
-			previousLabel: `${previousStart} to ${previousEnd}`,
-			current,
-			previous,
-			tokenDeltaPct: deltaPct(current.tokens, previous.tokens),
-			costDeltaPct: deltaPct(current.cost, previous.cost),
-			requestDeltaPct: deltaPct(current.requests, previous.requests),
-			efficiencyDeltaPct: deltaPct(
-				current.blendedCostPer1M,
-				previous.blendedCostPer1M
-			),
-			cheapShareDeltaPct: deltaPct(
-				current.cheapTokenSharePct,
-				previous.cheapTokenSharePct
-			),
-		};
-	}, [data, selectedModels, fromDate, toDate]);
-
 	const requestSort = (key: string) => {
 		setSortConfig((prev) => {
 			if (prev.key !== key) {
@@ -942,7 +839,7 @@ function Dashboard() {
 	};
 
 	return (
-		<div className="min-h-screen w-full bg-gradient-to-b from-slate-100/90 via-slate-50 to-white text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-200 p-4 md:p-8 font-sans">
+		<div className="min-h-screen w-full bg-gradient-to-b from-slate-100/90 via-slate-50 to-white text-slate-900 dark:from-slate-950 dark:via-slate-950 dark:to-slate-900 dark:text-slate-200 p-3 md:p-4 font-sans">
 			<DashboardHeader
 				isUploading={isUploading}
 				uploadStatus={uploadStatus}
@@ -956,41 +853,32 @@ function Dashboard() {
 				setFromDate={setFromDate}
 				toDate={toDate}
 				setToDate={setToDate}
+				globalUsage={processedData?.globalUsage}
 			/>
 
 			{!processedData ? (
 				<EmptyState />
 			) : (
-				<main className="w-full space-y-8">
-					<ActionableInsights modelData={processedData.modelData} />
-					{usageEfficiencySummary && (
-						<UsageEfficiencySummary summary={usageEfficiencySummary} />
-					)}
-
+				<main className="w-full space-y-4">
 					{summaryData && <SummaryCards summaryData={summaryData} />}
-
-					{processedData?.modelData?.length > 0 && (
-						<TokenEfficiencyPValueChart modelData={processedData.modelData} />
-					)}
 
 					<ProviderComparison providerData={processedData.providerData} />
 
-					<UsageTrendsChart
-						timeseries={processedData.timeseries}
-						seriesMeta={processedData.timeseriesMeta}
-					/>
+					{processedData.timeseries.length > 0 && (
+						<DailyUsageChartsCard
+							timeseries={processedData.timeseries}
+							seriesMeta={processedData.timeseriesMeta}
+							modelSeries={processedData.modelSeries}
+							periodAverage={
+								processedData.globalUsage.averagePricePer1MTokens
+							}
+						/>
+					)}
 
 					<DistributionCharts
 						providerData={processedData.providerData}
 						usageByKind={processedData.usageByKind}
 					/>
-					{processedData.modelSeries.length > 0 &&
-						processedData.timeseries.length > 0 && (
-							<ModelSpendTokenCharts
-								timeseries={processedData.timeseries}
-								modelSeries={processedData.modelSeries}
-							/>
-						)}
 
 					<ModelBreakdownTable
 						sortedModelData={sortedModelData}
