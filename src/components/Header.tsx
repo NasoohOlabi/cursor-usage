@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 
 import { useState } from 'react'
 import {
+  Activity,
   ChevronDown,
   ChevronRight,
   Home,
@@ -31,7 +32,7 @@ export default function Header() {
 
   return (
     <>
-      <header className="p-4 flex items-center gap-3 bg-slate-100/95 dark:bg-gray-800 text-slate-900 dark:text-white border-b border-slate-200/80 dark:border-gray-700/50 shadow-sm dark:shadow-lg">
+      <header className="p-4 flex items-center gap-3 bg-gradient-to-r from-slate-100 via-white to-slate-100/90 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-slate-900 dark:text-white border-b border-slate-200/80 dark:border-cyan-500/20 shadow-sm dark:shadow-[0_4px_24px_-4px_rgba(34,211,238,0.15)]">
         <button
           onClick={() => setIsOpen(true)}
           className="p-2 hover:bg-slate-200/90 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -40,12 +41,32 @@ export default function Header() {
           <Menu size={24} />
         </button>
         <h1 className="text-xl font-semibold">
-          <Link to="/" className="block">
-            <img
-              src="/tanstack-word-logo-white.svg"
-              alt="TanStack Logo"
-              className="h-10 w-auto brightness-0 dark:brightness-100 dark:invert-0"
-            />
+          <Link
+            to="/"
+            className="group flex items-center gap-2.5 rounded-xl px-1 py-0.5 transition-transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 via-violet-500 to-fuchsia-500 p-[2px] shadow-lg shadow-cyan-500/25 dark:shadow-cyan-400/20">
+              <span className="flex h-full w-full items-center justify-center rounded-[10px] bg-white dark:bg-gray-900">
+                <Activity
+                  size={20}
+                  className="text-cyan-600 dark:text-cyan-400"
+                  strokeWidth={2.5}
+                />
+              </span>
+            </span>
+            <span className="flex flex-col leading-none">
+              <span className="flex items-baseline gap-1.5">
+                <span className="bg-gradient-to-r from-cyan-600 via-violet-600 to-fuchsia-600 dark:from-cyan-300 dark:via-violet-300 dark:to-fuchsia-300 bg-clip-text text-lg font-black uppercase tracking-tighter text-transparent">
+                  Cursor
+                </span>
+                <span className="text-lg font-black uppercase italic tracking-tight text-slate-800 dark:text-white">
+                  Usage
+                </span>
+              </span>
+              <span className="mt-0.5 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-cyan-400/80">
+                analytics
+              </span>
+            </span>
           </Link>
         </h1>
         <div className="ml-auto flex items-center gap-1">
