@@ -1,6 +1,6 @@
 export const DAILY_STACK_SYNC_ID = "daily-usage-stack";
 /** Outer height of every chart pane in the daily stack (plot + reserved axis band). */
-export const DAILY_STACK_CHART_HEIGHT_PX = 140;
+export const DAILY_STACK_CHART_HEIGHT_PX = 280;
 /** Bottom margin reserved on all panes so plot areas share the same height. */
 export const DAILY_STACK_X_AXIS_RESERVE_PX = 40;
 /** Fixed width reserved for Y-axis ticks so plot areas line up. */
