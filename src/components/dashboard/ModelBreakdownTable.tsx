@@ -47,9 +47,15 @@ export const ModelBreakdownTable = ({
 					<div className="p-1.5 rounded-md bg-indigo-100/90 ring-1 ring-inset ring-indigo-200/80 dark:bg-indigo-500/10 dark:ring-0">
 						<Activity className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
 					</div>
-					<h2 className="text-sm font-bold text-slate-900 dark:text-white">
-						Model breakdown
-					</h2>
+					<div>
+						<h2 className="text-sm font-bold text-slate-900 dark:text-white">
+							Model breakdown
+						</h2>
+						<p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 max-w-xl">
+							<strong>Spent</strong> = your actual CSV charges (usage-dependent).
+							<strong className="ml-1">List $/1M</strong> = Cursor docs input rate only — not blended cost.
+						</p>
+					</div>
 				</div>
 				<div className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
 					<span className="uppercase tracking-wider font-semibold">
@@ -122,15 +128,34 @@ export const ModelBreakdownTable = ({
 								</div>
 							</th>
 							{[
-								{ key: "costAgg", label: "Cost" },
-								{ key: "pricePer1MTokens", label: "Price/1M" },
-								{ key: "cacheHitRate", label: "Cache Hit %" },
-								{ key: "input", label: "Input" },
-								{ key: "output", label: "Output" },
-								{ key: "total", label: "Total" },
+								{
+									key: "costAgg",
+									label: costAggregation === "sum" ? "Spent" : "Cost",
+									title:
+										costAggregation === "sum"
+											? "Sum of Cost from your export for this model (what you actually paid in the period)."
+											: `${costAggregation} of per-request Cost from your export.`,
+								},
+								{
+									key: "pricePer1MTokens",
+									label: "List $/1M",
+									title:
+										"Cursor docs input price per 1M tokens (catalog rate). Auto is ~$1.25; Composer 2.5 is ~$0.50 — compare Spent and Observed for real spend.",
+								},
+								{
+									key: "p50ObservedCostPer1M",
+									label: "Observed $/1M",
+									title:
+										"Median actual $/1M from your CSV (Cost ÷ Total Tokens × 1M per request). Blends input, cache, and output.",
+								},
+								{ key: "cacheHitRate", label: "Cache Hit %", title: undefined },
+								{ key: "input", label: "Input", title: undefined },
+								{ key: "output", label: "Output", title: undefined },
+								{ key: "total", label: "Total", title: undefined },
 							].map((col) => (
 								<th
 									key={col.key}
+									title={col.title}
 									className="py-3 px-4 text-slate-500 dark:text-slate-400 font-medium text-xs text-right cursor-pointer hover:text-slate-900 dark:hover:text-white transition-colors group"
 									onClick={() => requestSort(col.key)}
 								>
@@ -200,8 +225,24 @@ export const ModelBreakdownTable = ({
 											  )
 											: "inherit",
 									}}
+									title="Docs input list rate"
 								>
 									{m.hasDocsPrice ? `$${m.pricePer1MTokens.toFixed(2)}` : "N/A"}
+								</td>
+								<td
+									className="py-3 px-4 text-sm text-right font-mono text-slate-700 dark:text-slate-300"
+									style={{
+										color: getScaledColor(
+											"p50ObservedCostPer1M",
+											m.p50ObservedCostPer1M,
+											summaryData
+										),
+									}}
+									title="Median actual $/1M from your usage"
+								>
+									{m.p50ObservedCostPer1M > 0
+										? `$${m.p50ObservedCostPer1M.toFixed(2)}`
+										: "—"}
 								</td>
 								<td className="py-3 px-4 text-sm text-right font-mono" style={{ color: getScaledColor("cacheHitRate", m.cacheHitRate, summaryData) }}>
 									{m.cacheHitRate > 0 ? `${m.cacheHitRate.toFixed(1)}%` : "0%"}

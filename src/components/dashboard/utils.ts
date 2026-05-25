@@ -66,6 +66,24 @@ export const COLORS = [
 	"#eab308",
 ];
 
+export function summarizeMetricExtents<T extends Record<string, unknown>>(
+	values: T[],
+	key: keyof T & string
+): { least: T; most: T; p01: T; p99: T } | null {
+	if (values.length === 0) return null;
+	const sorted = [...values].sort(
+		(a, b) => Number(a[key]) - Number(b[key])
+	);
+	const at = (p: number) =>
+		sorted[Math.floor(p * (sorted.length - 1))] ?? sorted[0];
+	return {
+		least: sorted[0],
+		most: sorted[sorted.length - 1],
+		p01: at(0.01),
+		p99: at(0.99),
+	};
+}
+
 export const getScaledColor = (
 	key: string,
 	value: number,
@@ -75,8 +93,8 @@ export const getScaledColor = (
 	const metric = summaryData.find((m) => m.key === key);
 	if (!metric) return "inherit";
 
-	const min = metric.least[key];
-	const max = metric.most[key];
+	const min = (metric.p01 ?? metric.least)[key];
+	const max = (metric.p99 ?? metric.most)[key];
 
 	if (max === min) return "inherit";
 
@@ -86,6 +104,7 @@ export const getScaledColor = (
 	const lowerIsBetterMetrics = [
 		"cost",
 		"pricePer1MTokens",
+		"p50ObservedCostPer1M",
 		"avgPromptCost",
 		"costAgg",
 		"input",

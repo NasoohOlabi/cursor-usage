@@ -77,6 +77,7 @@ export interface ProcessedData {
 	providerData: ProviderData[];
 	timeseriesMeta: TimeseriesSeriesMeta[];
 	modelSeries: ModelTimeseriesSeries[];
+	providerSeries: ModelTimeseriesSeries[];
 	globalUsage: GlobalUsageTotals;
 }
 
@@ -87,6 +88,12 @@ export interface MetricSummary {
 	format: (v: number) => string;
 	least: any;
 	most: any;
+	/** 1st percentile model (robust low) */
+	p01: any;
+	/** 99th percentile model (robust high) */
+	p99: any;
+	/** Shown on card hover — how this metric is computed */
+	hint?: string;
 }
 
 export interface SortConfig {
