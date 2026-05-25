@@ -1,26 +1,23 @@
-import tailwindcss from '@tailwindcss/vite'
-import { devtools } from '@tanstack/devtools-vite'
-import { tanstackStart } from '@tanstack/react-start/plugin/vite'
-import viteReact from '@vitejs/plugin-react'
-import { nitro } from 'nitro/vite'
-import { defineConfig } from 'vite'
-import viteTsConfigPaths from 'vite-tsconfig-paths'
+import tailwindcss from "@tailwindcss/vite";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
+import viteReact from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+import viteTsConfigPaths from "vite-tsconfig-paths";
 
-const config = defineConfig({
-  server: {
-    port: 3030,
-  },
-  plugins: [
-    devtools(),
-    // TanStack Start must register Vite environments before Nitro (see nitro/vite + start docs)
-    viteTsConfigPaths({
-      projects: ['./tsconfig.json'],
-    }),
-    tailwindcss(),
-    tanstackStart(),
-    nitro(),
-    viteReact(),
-  ],
-})
-
-export default config
+export default defineConfig({
+	base: process.env.GITHUB_PAGES === "true" ? "/cursor-usage/" : "/",
+	server: {
+		port: 3030,
+	},
+	plugins: [
+		viteTsConfigPaths({
+			projects: ["./tsconfig.json"],
+		}),
+		tailwindcss(),
+		tanstackRouter({
+			target: "react",
+			autoCodeSplitting: true,
+		}),
+		viteReact(),
+	],
+});

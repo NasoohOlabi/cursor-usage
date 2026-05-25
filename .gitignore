@@ -12,4 +12,6 @@ count.txt
 .vinxi
 todos.json
 data
+dist
+.output
 prompts.log

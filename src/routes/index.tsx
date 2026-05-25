@@ -1,8 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
-import { createServerFn } from "@tanstack/react-start";
-import fs from "node:fs/promises";
-import path from "node:path";
-import Papa from "papaparse";
+import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 // Components
@@ -24,6 +20,7 @@ import {
 	SortConfig,
 } from "../components/dashboard/types";
 import {
+	getPercentileValue,
 	getProviderName,
 	summarizeMetricExtents,
 } from "../components/dashboard/utils";
@@ -34,80 +31,22 @@ import {
 	fetchCursorDocsPricing,
 	getTokenTotals,
 } from "../components/dashboard/pricing";
-
-// --- Server Functions ---
-
-const DATA_DIR = "./data";
-
-const uploadCsv = createServerFn({ method: "POST" })
-	.inputValidator((d: FormData) => d)
-	.handler(async ({ data }) => {
-		const file = data.get("file") as File;
-		if (!file) throw new Error("No file uploaded");
-
-		const bytes = await file.arrayBuffer();
-		const buffer = Buffer.from(bytes);
-		const filePath = path.join(DATA_DIR, file.name);
-		await fs.writeFile(filePath, buffer);
-		return { success: true };
-	});
-
-const getLatestData = createServerFn({ method: "GET" }).handler(
-	async (): Promise<any[] | null> => {
-		try {
-			const files = await fs.readdir(DATA_DIR).catch(() => []);
-			const csvFiles = files.filter((f) => f.endsWith(".csv"));
-			if (csvFiles.length === 0) return null;
-
-			const fileStats = await Promise.all(
-				csvFiles.map(async (f) => ({
-					name: f,
-					stat: await fs.stat(path.join(DATA_DIR, f)),
-				}))
-			);
-			const latestFile = fileStats.sort(
-				(a, b) => b.stat.mtime.getTime() - a.stat.mtime.getTime()
-			)[0];
-
-			const content = await fs.readFile(
-				path.join(DATA_DIR, latestFile.name),
-				"utf-8"
-			);
-			const parsed = Papa.parse(content, {
-				header: true,
-				dynamicTyping: true,
-				skipEmptyLines: true,
-			});
-			return parsed.data;
-		} catch (error) {
-			console.error("Error reading data:", error);
-			return null;
-		}
-	}
-);
-
-const getCursorDocsPricing = createServerFn({ method: "GET" }).handler(
-	async () => {
-		const result = await fetchCursorDocsPricing();
-		return {
-			pricing: result.pricing,
-			fetchedAt: result.fetchedAt,
-			source: result.sources[0],
-			sources: result.sources,
-		};
-	}
-);
-
-// --- Route Definition ---
+import {
+	fetchSampleCsv,
+	loadStoredCsvRows,
+	parseCsvFile,
+	storeCsvRows,
+	type UsageRow,
+} from "../lib/csv";
 
 export const Route = createFileRoute("/")({
 	component: Dashboard,
-	loader: async () => await getLatestData(),
 });
 
 function Dashboard() {
-	const data = Route.useLoaderData() as any[] | null;
-	const router = useRouter();
+	const [data, setData] = useState<UsageRow[] | null>(null);
+	const [isLoadingData, setIsLoadingData] = useState(true);
+	const [loadError, setLoadError] = useState<string | null>(null);
 	const [isUploading, setIsUploading] = useState(false);
 	const [uploadStatus, setUploadStatus] = useState<
 		"idle" | "success" | "error"
@@ -131,6 +70,41 @@ function Dashboard() {
 	const [selectedModels, setSelectedModels] = useState<string[]>([]);
 	const [fromDate, setFromDate] = useState<string>("");
 	const [toDate, setToDate] = useState<string>("");
+
+	useEffect(() => {
+		let cancelled = false;
+
+		(async () => {
+			setIsLoadingData(true);
+			setLoadError(null);
+			try {
+				const stored = loadStoredCsvRows();
+				if (stored) {
+					if (!cancelled) setData(stored);
+					return;
+				}
+				const sample = await fetchSampleCsv();
+				if (!cancelled) {
+					setData(sample);
+					storeCsvRows(sample);
+				}
+			} catch (error) {
+				console.error("Failed to load usage data:", error);
+				if (!cancelled) {
+					setLoadError(
+						error instanceof Error ? error.message : "Failed to load data"
+					);
+					setData(null);
+				}
+			} finally {
+				if (!cancelled) setIsLoadingData(false);
+			}
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, []);
 
 	const sanitizeSeriesKey = useCallback((value: string) => {
 		return value
@@ -211,11 +185,11 @@ function Dashboard() {
 			setUploadStatus("idle");
 
 			try {
-				const formData = new FormData();
-				formData.append("file", file);
-				await uploadCsv({ data: formData });
+				const rows = await parseCsvFile(file);
+				if (rows.length === 0) throw new Error("CSV has no data rows");
+				setData(rows);
+				storeCsvRows(rows);
 				setUploadStatus("success");
-				router.invalidate();
 			} catch (error) {
 				console.error("Upload failed:", error);
 				setUploadStatus("error");
@@ -223,13 +197,13 @@ function Dashboard() {
 				setIsUploading(false);
 			}
 		},
-		[router]
+		[]
 	);
 
 	const onRefreshPricing = useCallback(async () => {
 		setPricingRefreshStatus("loading");
 		try {
-			const result = await getCursorDocsPricing();
+			const result = await fetchCursorDocsPricing();
 			setDocsPricing(result.pricing || DEFAULT_DOCS_PRICING);
 			setPricingLastUpdated(result.fetchedAt);
 			setPricingRefreshStatus("success");
@@ -309,11 +283,6 @@ function Dashboard() {
 			}, {})
 		)
 			.map((m: any) => {
-				const getPValue = (sortedValues: number[], percentile: number) => {
-					if (sortedValues.length === 0) return 0;
-					const idx = Math.floor(percentile * (sortedValues.length - 1));
-					return sortedValues[idx] ?? 0;
-				};
 				const sortedCosts = [...m.costSamples].sort(
 					(a: number, b: number) => a - b
 				);
@@ -326,12 +295,18 @@ function Dashboard() {
 				const count = sortedCosts.length;
 				const minPromptCost = count > 0 ? sortedCosts[0] : 0;
 				const maxPromptCost = count > 0 ? sortedCosts[count - 1] : 0;
-				const p50PromptCost = getPValue(sortedCosts, 0.5);
-				const p90PromptCost = getPValue(sortedCosts, 0.9);
-				const p50PromptTokens = getPValue(sortedTotalTokens, 0.5);
-				const p90PromptTokens = getPValue(sortedTotalTokens, 0.9);
-				const p50ObservedCostPer1M = getPValue(sortedObservedCostPer1M, 0.5);
-				const p90ObservedCostPer1M = getPValue(sortedObservedCostPer1M, 0.9);
+				const p50PromptCost = getPercentileValue(sortedCosts, 0.5);
+				const p90PromptCost = getPercentileValue(sortedCosts, 0.9);
+				const p50PromptTokens = getPercentileValue(sortedTotalTokens, 0.5);
+				const p90PromptTokens = getPercentileValue(sortedTotalTokens, 0.9);
+				const p50ObservedCostPer1M = getPercentileValue(
+					sortedObservedCostPer1M,
+					0.5,
+				);
+				const p90ObservedCostPer1M = getPercentileValue(
+					sortedObservedCostPer1M,
+					0.9,
+				);
 				const docsPrice = calculateDocsPricePer1M(
 					m.name,
 					{
@@ -481,6 +456,7 @@ function Dashboard() {
 						totalTokens: 0,
 						inputWithCacheWrite: 0,
 						outputTokens: 0,
+						observedCostPer1MSamples: [] as number[],
 					};
 				}
 				const rowCost = Number(row.Cost) || 0;
@@ -489,6 +465,9 @@ function Dashboard() {
 				if (rowTokens > 0) {
 					acc[date].pricedCost += rowCost;
 					acc[date].totalTokens += rowTokens;
+					acc[date].observedCostPer1MSamples.push(
+						(rowCost / rowTokens) * 1_000_000,
+					);
 				}
 				acc[date].inputWithCacheWrite +=
 					Number(row["Input (w/ Cache Write)"]) || 0;
@@ -529,7 +508,27 @@ function Dashboard() {
 
 				return acc;
 			}, {})
-		).sort((a: any, b: any) => a.name.localeCompare(b.name));
+		)
+			.map((row: any) => {
+				const sorted = [...(row.observedCostPer1MSamples as number[])].sort(
+					(a, b) => a - b,
+				);
+				const hasSamples = sorted.length > 0;
+				const { observedCostPer1MSamples: _samples, ...rest } = row;
+				return {
+					...rest,
+					p50PricePer1M: hasSamples
+						? getPercentileValue(sorted, 0.5)
+						: null,
+					p90PricePer1M: hasSamples
+						? getPercentileValue(sorted, 0.9)
+						: null,
+					p99PricePer1M: hasSamples
+						? getPercentileValue(sorted, 0.99)
+						: null,
+				};
+			})
+			.sort((a: any, b: any) => a.name.localeCompare(b.name));
 
 		timeseries.forEach((row: any) => {
 			providerSeries.forEach((series) => {
@@ -871,7 +870,18 @@ function Dashboard() {
 				globalUsage={processedData?.globalUsage}
 			/>
 
-			{!processedData ? (
+			{isLoadingData ? (
+				<main className="mx-auto max-w-lg px-6 py-16 text-center text-slate-600 dark:text-slate-400">
+					Loading usage data…
+				</main>
+			) : loadError ? (
+				<main className="mx-auto max-w-lg px-6 py-16 text-center">
+					<p className="text-red-600 dark:text-red-400">{loadError}</p>
+					<p className="mt-2 text-sm text-slate-600 dark:text-slate-400">
+						Upload a Cursor team usage CSV to get started.
+					</p>
+				</main>
+			) : !processedData ? (
 				<EmptyState />
 			) : (
 				<main className="w-full space-y-4">

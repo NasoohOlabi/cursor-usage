@@ -3,22 +3,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev --port 3030",
+    "dev": "vite --port 3030",
     "build": "vite build",
+    "build:pages": "GITHUB_PAGES=true vite build",
     "preview": "vite preview",
     "test": "vitest run"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.0.6",
-    "@tanstack/react-devtools": "^0.7.0",
     "@tanstack/react-router": "^1.132.0",
     "@tanstack/react-router-devtools": "^1.132.0",
-    "@tanstack/react-router-ssr-query": "^1.131.7",
-    "@tanstack/react-start": "^1.132.0",
-    "@tanstack/router-plugin": "^1.132.0",
     "@types/papaparse": "^5.5.2",
     "lucide-react": "^0.561.0",
-    "nitro": "npm:nitro-nightly@latest",
     "papaparse": "^5.5.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
@@ -27,7 +23,7 @@
     "vite-tsconfig-paths": "^6.0.2"
   },
   "devDependencies": {
-    "@tanstack/devtools-vite": "^0.3.11",
+    "@tanstack/router-plugin": "^1.132.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
     "@types/node": "^22.10.2",
@@ -37,7 +33,6 @@
     "jsdom": "^27.0.0",
     "typescript": "^5.7.2",
     "vite": "^7.1.7",
-    "vitest": "^3.0.5",
-    "web-vitals": "^5.1.0"
+    "vitest": "^3.0.5"
   }
 }
