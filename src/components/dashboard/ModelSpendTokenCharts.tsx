@@ -25,13 +25,15 @@ import {
 	dailyStackYAxisTick,
 	pickXAxisTicks,
 } from "./chartLayout";
+import type { BreakdownView } from "./UsageTrendsChart";
 import { ModelTimeseriesSeries, TimeseriesData } from "./types";
 import { COLORS } from "./utils";
 
 interface ModelSpendTokenChartsProps {
 	timeseries: TimeseriesData[];
 	modelSeries: ModelTimeseriesSeries[];
-	/** When true, omit outer card chrome (parent supplies one border/padding). */
+	providerSeries: ModelTimeseriesSeries[];
+	breakdownView: BreakdownView;
 	embedded?: boolean;
 	stackMode?: boolean;
 	syncId?: string;
@@ -42,6 +44,9 @@ interface ModelSpendTokenChartsProps {
 }
 
 const shortModelName = (name: string) => name.split("/").pop() || name;
+
+const seriesLabel = (name: string, breakdownView: BreakdownView) =>
+	breakdownView === "model" ? shortModelName(name) : name;
 
 const formatYAxisTokens = (value: number) => {
 	if (value >= 1_000_000)
@@ -62,6 +67,7 @@ type TooltipPayloadEntry = {
 	value?: number | string;
 	color?: string;
 	dataKey?: string | number;
+	payload?: TimeseriesData;
 };
 
 function ModelLineTooltip({
@@ -80,6 +86,7 @@ function ModelLineTooltip({
 
 	if (!active || !payload?.length) return null;
 
+	const point = payload[0]?.payload;
 	const rows = payload
 		.map((p) => ({
 			...p,
@@ -89,6 +96,13 @@ function ModelLineTooltip({
 		.sort((a, b) => b.num - a.num);
 
 	const labelText = label != null ? String(label) : "";
+	const totalLabel = variant === "cost" ? "Daily Cost ($)" : "Total Tokens";
+	const totalValue =
+		point != null
+			? variant === "cost"
+				? `$${Number(point.cost).toFixed(2)}`
+				: Number(point.totalTokens).toLocaleString()
+			: null;
 
 	return (
 		<div
@@ -135,6 +149,14 @@ function ModelLineTooltip({
 					))}
 				</ul>
 			)}
+			{totalValue != null ? (
+				<div className="mt-2 flex items-center justify-between gap-4 border-t border-slate-200 pt-2 text-xs font-semibold dark:border-slate-800">
+					<span className="text-slate-700 dark:text-slate-300">{totalLabel}</span>
+					<span className="shrink-0 font-mono tabular-nums text-slate-900 dark:text-slate-100">
+						{totalValue}
+					</span>
+				</div>
+			) : null}
 		</div>
 	);
 }
@@ -142,6 +164,8 @@ function ModelLineTooltip({
 export const ModelSpendTokenCharts = ({
 	timeseries,
 	modelSeries,
+	providerSeries,
+	breakdownView,
 	embedded = false,
 	stackMode = false,
 	syncId = DAILY_STACK_SYNC_ID,
@@ -153,12 +177,16 @@ export const ModelSpendTokenCharts = ({
 	const { isDark } = useTheme();
 	const chartTheme = useMemo(() => getChartTheme(isDark), [isDark]);
 
+	const activeSeries =
+		breakdownView === "model" ? modelSeries : providerSeries;
+	const breakdownNoun = breakdownView === "model" ? "model" : "provider";
+
 	const xTicks = useMemo(
 		() => xTicksProp ?? pickXAxisTicks(timeseries.map((d) => d.name)),
 		[timeseries, xTicksProp],
 	);
 
-	if (!modelSeries.length || !timeseries.length) return null;
+	if (!activeSeries.length || !timeseries.length) return null;
 
 	const marginTopChart = stackMode
 		? dailyStackChartMargin
@@ -189,12 +217,12 @@ export const ModelSpendTokenCharts = ({
 		return (
 			<div>
 				<span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-500">
-					Models
+					{breakdownView === "model" ? "Models" : "Providers"}
 				</span>
 				<ul className="mt-1.5 space-y-1 overflow-y-auto pr-1 text-xs">
-					{modelSeries.map((series, index) => {
+					{activeSeries.map((series, index) => {
 						const color = COLORS[index % COLORS.length];
-						const label = shortModelName(series.name);
+						const label = seriesLabel(series.name, breakdownView);
 						return (
 							<li
 								key={series.costKey}
@@ -230,7 +258,9 @@ export const ModelSpendTokenCharts = ({
 				{showCharts && (
 				<div className="min-w-0 flex-1 flex flex-col gap-2">
 					<div className="w-full min-w-0">
-						<h3 className={dailyStackPaneTitleClass}>Spending by model</h3>
+						<h3 className={dailyStackPaneTitleClass}>
+							Spending by {breakdownNoun}
+						</h3>
 						<div
 							className="w-full min-w-0 shrink-0 overflow-visible"
 							style={{ height: chartHeight }}
@@ -271,12 +301,12 @@ export const ModelSpendTokenCharts = ({
 												/>
 											)}
 										/>
-										{modelSeries.map((series, index) => (
+										{activeSeries.map((series, index) => (
 											<Area
 												key={series.costKey}
 												type="monotone"
 												dataKey={series.costKey}
-												name={shortModelName(series.name)}
+												name={seriesLabel(series.name, breakdownView)}
 												stroke={COLORS[index % COLORS.length]}
 												fill={COLORS[index % COLORS.length]}
 												fillOpacity={0.72}
@@ -293,7 +323,9 @@ export const ModelSpendTokenCharts = ({
 					</div>
 
 					<div className="w-full min-w-0">
-						<h3 className={dailyStackPaneTitleClass}>Token use by model</h3>
+						<h3 className={dailyStackPaneTitleClass}>
+							Token use by {breakdownNoun}
+						</h3>
 						<div
 							className="w-full min-w-0 shrink-0 overflow-visible"
 							style={{ height: chartHeight }}
@@ -338,12 +370,12 @@ export const ModelSpendTokenCharts = ({
 												/>
 											)}
 										/>
-										{modelSeries.map((series, index) => (
+										{activeSeries.map((series, index) => (
 											<Area
 												key={series.tokensKey}
 												type="monotone"
 												dataKey={series.tokensKey}
-												name={shortModelName(series.name)}
+												name={seriesLabel(series.name, breakdownView)}
 												stroke={COLORS[index % COLORS.length]}
 												fill={COLORS[index % COLORS.length]}
 												fillOpacity={0.72}
@@ -364,14 +396,14 @@ export const ModelSpendTokenCharts = ({
 				{part === "full" && showLegend && (
 				<div className="shrink-0 border-t border-slate-200/80 pt-2 min-[520px]:w-48 min-[520px]:border-l min-[520px]:border-t-0 min-[520px]:pl-3 min-[520px]:pt-0 dark:border-slate-800">
 					<span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-500">
-						Models
+						{breakdownView === "model" ? "Models" : "Providers"}
 					</span>
 					<ul
 						className="mt-1.5 max-h-[min(460px,70vh)] space-y-1 overflow-y-auto pr-1 text-xs"
 					>
-						{modelSeries.map((series, index) => {
+						{activeSeries.map((series, index) => {
 							const color = COLORS[index % COLORS.length];
-							const label = shortModelName(series.name);
+							const label = seriesLabel(series.name, breakdownView);
 							return (
 								<li key={series.costKey} className="flex min-w-0 items-center gap-2">
 									<span
