@@ -1,15 +1,17 @@
 # Cursor usage dashboard
 
-Visualize Cursor team usage exports (CSV): costs, models, token trends, and pricing comparisons. Upload your own export in the app, or explore the bundled demo dataset at `public/sample-usage-events.csv` (redacted: no real emails, team IDs, or agent UUIDs).
+Client-side dashboard for Cursor team usage CSV exports: costs, models, token trends, and pricing comparisons. No backend — data is parsed in the browser. On first visit the app loads the redacted demo file at `public/sample-usage-events.csv`; uploads are kept in `localStorage`.
+
+Live demo: https://nasooholabi.github.io/cursor-usage/
 
 # Getting Started
-
-To run this application:
 
 ```bash
 pnpm install
 pnpm dev
 ```
+
+Open http://localhost:3030 — upload your own CSV or use the bundled sample.
 
 # Building For Production
 
