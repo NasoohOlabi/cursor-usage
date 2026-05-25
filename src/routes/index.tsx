@@ -23,13 +23,16 @@ import {
 	ProcessedData,
 	SortConfig,
 } from "../components/dashboard/types";
-import { getProviderName } from "../components/dashboard/utils";
+import {
+	getProviderName,
+	summarizeMetricExtents,
+} from "../components/dashboard/utils";
 import {
 	DEFAULT_DOCS_PRICING,
 	calculateDocsPricePer1M,
 	DocsPricingMap,
+	fetchCursorDocsPricing,
 	getTokenTotals,
-	parseCursorDocsPricing,
 } from "../components/dashboard/pricing";
 
 // --- Server Functions ---
@@ -83,29 +86,17 @@ const getLatestData = createServerFn({ method: "GET" }).handler(
 	}
 );
 
-const getCursorDocsPricing = createServerFn({ method: "GET" }).handler(async () => {
-	const sources = [
-		"https://r.jina.ai/http://cursor.com/docs/models",
-		"https://cursor.com/docs/models",
-	];
-
-	for (const source of sources) {
-		try {
-			const response = await fetch(source);
-			if (!response.ok) continue;
-			const content = await response.text();
-			return {
-				pricing: parseCursorDocsPricing(content),
-				fetchedAt: new Date().toISOString(),
-				source,
-			};
-		} catch {
-			// Try next source.
-		}
+const getCursorDocsPricing = createServerFn({ method: "GET" }).handler(
+	async () => {
+		const result = await fetchCursorDocsPricing();
+		return {
+			pricing: result.pricing,
+			fetchedAt: result.fetchedAt,
+			source: result.sources[0],
+			sources: result.sources,
+		};
 	}
-
-	throw new Error("Unable to fetch pricing from Cursor docs");
-});
+);
 
 // --- Route Definition ---
 
@@ -638,6 +629,7 @@ function Dashboard() {
 			providerData,
 			timeseriesMeta,
 			modelSeries,
+			providerSeries,
 			globalUsage,
 		};
 	}, [data, selectedModels, fromDate, toDate, sanitizeSeriesKey, docsPricing]) as
@@ -700,15 +692,27 @@ function Dashboard() {
 		}> = [
 			{
 				key: "costAgg",
-				label: "Cost",
+				label: costAggregation === "sum" ? "Spent" : "Cost",
 				unit: "$",
 				format: (v: number) => `$${v.toFixed(4)}`,
+				hint:
+					costAggregation === "sum"
+						? "Sum of CSV Cost — actual charges in the filtered period."
+						: `${costAggregation} of per-request Cost from your export.`,
 			},
 			{
 				key: "pricePer1MTokens",
-				label: "Price/1M Tokens",
+				label: "List $/1M (input)",
 				unit: "$",
 				format: (v: number) => `$${v.toFixed(2)}`,
+				hint: "Cursor docs input catalog rate — not your blended spend.",
+			},
+			{
+				key: "p50ObservedCostPer1M",
+				label: "Observed $/1M (p50)",
+				unit: "$",
+				format: (v: number) => `$${v.toFixed(2)}`,
+				hint: "Median actual Cost ÷ Total Tokens × 1M per request in your export.",
 			},
 			{
 				key: "cacheHitRate",
@@ -718,9 +722,10 @@ function Dashboard() {
 			},
 			{
 				key: "input",
-				label: "Input Tokens",
+				label: "Input (w/o Cache)",
 				unit: "",
 				format: (v: number) => v.toLocaleString(),
+				hint: "Sum of “Input (w/o Cache Write)” only — excludes cache read/write.",
 			},
 			{
 				key: "output",
@@ -733,6 +738,7 @@ function Dashboard() {
 				label: "Total Tokens",
 				unit: "",
 				format: (v: number) => v.toLocaleString(),
+				hint: "Sum of CSV Total Tokens (input + cache read + output).",
 			},
 		];
 
@@ -741,19 +747,15 @@ function Dashboard() {
 				const values =
 					metric.key === "pricePer1MTokens"
 						? modelBreakdownData.filter((row) => row.hasDocsPrice)
-						: modelBreakdownData;
-				if (values.length === 0) return null;
-				const sorted = [...values].sort(
-					(a: any, b: any) => a[metric.key] - b[metric.key]
-				);
-				return {
-					...metric,
-					least: sorted[0],
-					most: sorted[sorted.length - 1],
-				};
+						: metric.key === "p50ObservedCostPer1M"
+							? modelBreakdownData.filter((row) => row.p50ObservedCostPer1M > 0)
+							: modelBreakdownData;
+				const extents = summarizeMetricExtents(values, metric.key);
+				if (!extents) return null;
+				return { ...metric, ...extents };
 			})
 			.filter(Boolean) as MetricSummary[];
-	}, [modelBreakdownData]);
+	}, [modelBreakdownData, costAggregation]);
 
 	const summaryData = useMemo(() => {
 		if (!processedData?.modelData || processedData.modelData.length === 0)
@@ -765,42 +767,49 @@ function Dashboard() {
 				label: "Cost",
 				unit: "$",
 				format: (v: number) => `$${v.toFixed(4)}`,
+				hint: "Sum of CSV Cost per model in the filtered range.",
 			},
 			{
 				key: "pricePer1MTokens",
 				label: "Price/1M Tokens",
 				unit: "$",
 				format: (v: number) => `$${v.toFixed(2)}`,
+				hint: "Cursor docs input $/1M (fast tiers like Composer 2.5-fast are priced higher).",
 			},
 			{
 				key: "avgOutputTokens",
 				label: "Avg Output Tokens",
 				unit: "",
 				format: (v: number) => v.toFixed(0),
+				hint: "Mean output tokens per request (total output ÷ request count).",
 			},
 			{
 				key: "avgPromptCost",
 				label: "Avg Prompt Cost",
 				unit: "$",
 				format: (v: number) => `$${v.toFixed(4)}`,
+				hint: "Mean cost per request (total cost ÷ request count).",
 			},
 			{
 				key: "input",
-				label: "Input Tokens",
+				label: "Input (w/o Cache)",
 				unit: "",
 				format: (v: number) => v.toLocaleString(),
+				hint: "Sum of “Input (w/o Cache Write)” only — excludes cache read/write.",
 			},
 			{
 				key: "output",
 				label: "Output Tokens",
 				unit: "",
 				format: (v: number) => v.toLocaleString(),
+				hint: "Sum of Output Tokens per model.",
 			},
 			{
 				key: "total",
 				label: "Total Tokens",
 				unit: "",
 				format: (v: number) => v.toLocaleString(),
+				hint: "Sum of CSV Total Tokens (input + cache read + output).",
 			},
 		];
 
@@ -810,15 +819,9 @@ function Dashboard() {
 					metric.key === "pricePer1MTokens"
 						? processedData.modelData.filter((row) => row.hasDocsPrice)
 						: processedData.modelData;
-				if (values.length === 0) return null;
-				const sorted = [...values].sort(
-					(a: any, b: any) => a[metric.key] - b[metric.key]
-				);
-				return {
-					...metric,
-					least: sorted[0],
-					most: sorted[sorted.length - 1],
-				};
+				const extents = summarizeMetricExtents(values, metric.key);
+				if (!extents) return null;
+				return { ...metric, ...extents };
 			})
 			.filter(Boolean) as MetricSummary[];
 	}, [processedData?.modelData]);
@@ -867,8 +870,8 @@ function Dashboard() {
 					{processedData.timeseries.length > 0 && (
 						<DailyUsageChartsCard
 							timeseries={processedData.timeseries}
-							seriesMeta={processedData.timeseriesMeta}
 							modelSeries={processedData.modelSeries}
+							providerSeries={processedData.providerSeries}
 							periodAverage={
 								processedData.globalUsage.averagePricePer1MTokens
 							}
