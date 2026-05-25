@@ -37,6 +37,8 @@ export interface ProviderData {
 export interface TimeseriesData {
 	name: string;
 	cost: number;
+	/** Cost from rows that have Total Tokens > 0 (for $/1M; excludes on-demand rows with cost only). */
+	pricedCost: number;
 	totalTokens: number;
 	inputWithCacheWrite: number;
 	outputTokens: number;
@@ -62,7 +64,7 @@ export interface ModelTimeseriesSeries {
 	costKey: string;
 }
 
-/** Blended average: sum(cost) / sum(tokens) for the filtered dataset. */
+/** Blended average: sum(metered cost) / sum(tokens) for rows with tokens > 0. */
 export interface GlobalUsageTotals {
 	totalTokens: number;
 	totalCost: number;

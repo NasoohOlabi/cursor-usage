@@ -1,4 +1,6 @@
-Welcome to your new TanStack app! 
+# Cursor usage dashboard
+
+Visualize Cursor team usage exports (CSV): costs, models, token trends, and pricing comparisons. Upload your own export in the app, or explore the bundled demo dataset at `public/sample-usage-events.csv` (redacted: no real emails, team IDs, or agent UUIDs).
 
 # Getting Started
 

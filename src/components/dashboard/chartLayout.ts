@@ -47,6 +47,18 @@ export const dailyStackTooltipProps = {
 	wrapperStyle: { zIndex: 60, outline: "none" },
 } as const;
 
+/** Billing cycle starts on this day of each month (matches Cursor invoice period). */
+export const BILLING_CYCLE_DAY_OF_MONTH = 6;
+
+/** Dates in `YYYY-MM-DD` form that fall on the billing-cycle day within the series. */
+export function pickBillingCycleDates(names: string[]): string[] {
+	return names.filter((name) => {
+		if (name.length < 10 || name[4] !== "-" || name[7] !== "-") return false;
+		const day = Number(name.slice(8, 10));
+		return day === BILLING_CYCLE_DAY_OF_MONTH;
+	});
+}
+
 export function pickXAxisTicks(names: string[]): string[] {
 	if (names.length === 0) return [];
 	if (names.length <= 12) return names;

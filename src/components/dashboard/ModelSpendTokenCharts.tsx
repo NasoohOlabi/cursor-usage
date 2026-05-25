@@ -9,6 +9,7 @@ import {
 	YAxis,
 } from "recharts";
 import { useTheme } from "../ThemeContext";
+import { BillingCycleReferenceLines } from "./BillingCycleReferenceLines";
 import { ClientChartMount } from "./ClientChartMount";
 import { getChartTheme } from "./chartTheme";
 import {
@@ -186,6 +187,11 @@ export const ModelSpendTokenCharts = ({
 		[timeseries, xTicksProp],
 	);
 
+	const dayNames = useMemo(
+		() => timeseries.map((d) => d.name),
+		[timeseries],
+	);
+
 	if (!activeSeries.length || !timeseries.length) return null;
 
 	const marginTopChart = stackMode
@@ -276,6 +282,10 @@ export const ModelSpendTokenCharts = ({
 											strokeDasharray="3 3"
 											stroke={chartTheme.gridStroke}
 										/>
+										<BillingCycleReferenceLines
+											names={dayNames}
+											stroke={chartTheme.axisStroke}
+										/>
 										<XAxis
 											dataKey="name"
 											hide
@@ -340,6 +350,10 @@ export const ModelSpendTokenCharts = ({
 										<CartesianGrid
 											strokeDasharray="3 3"
 											stroke={chartTheme.gridStroke}
+										/>
+										<BillingCycleReferenceLines
+											names={dayNames}
+											stroke={chartTheme.axisStroke}
 										/>
 										<XAxis
 											dataKey="name"

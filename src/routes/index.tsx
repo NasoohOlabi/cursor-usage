@@ -477,13 +477,19 @@ function Dashboard() {
 					acc[date] = {
 						name: date,
 						cost: 0,
+						pricedCost: 0,
 						totalTokens: 0,
 						inputWithCacheWrite: 0,
 						outputTokens: 0,
 					};
 				}
-				acc[date].cost += Number(row.Cost) || 0;
-				acc[date].totalTokens += Number(row["Total Tokens"]) || 0;
+				const rowCost = Number(row.Cost) || 0;
+				const rowTokens = Number(row["Total Tokens"]) || 0;
+				acc[date].cost += rowCost;
+				if (rowTokens > 0) {
+					acc[date].pricedCost += rowCost;
+					acc[date].totalTokens += rowTokens;
+				}
 				acc[date].inputWithCacheWrite +=
 					Number(row["Input (w/ Cache Write)"]) || 0;
 				acc[date].outputTokens += Number(row["Output Tokens"]) || 0;
@@ -609,16 +615,22 @@ function Dashboard() {
 
 		let globalTotalTokens = 0;
 		let globalTotalCost = 0;
+		let globalPricedCost = 0;
 		for (const row of validData) {
-			globalTotalTokens += getTokenTotals(row).totalTokens;
-			globalTotalCost += Number(row.Cost) || 0;
+			const tokenTotals = getTokenTotals(row);
+			const rowCost = Number(row.Cost) || 0;
+			globalTotalCost += rowCost;
+			if (tokenTotals.totalTokens > 0) {
+				globalTotalTokens += tokenTotals.totalTokens;
+				globalPricedCost += rowCost;
+			}
 		}
 		const globalUsage = {
 			totalTokens: globalTotalTokens,
 			totalCost: globalTotalCost,
 			averagePricePer1MTokens:
 				globalTotalTokens > 0
-					? (globalTotalCost / globalTotalTokens) * 1_000_000
+					? (globalPricedCost / globalTotalTokens) * 1_000_000
 					: 0,
 		};
 

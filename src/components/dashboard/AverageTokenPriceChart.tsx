@@ -1,6 +1,7 @@
 import { Coins } from "lucide-react";
 import { useMemo } from "react";
 import { useTheme } from "../ThemeContext";
+import { BillingCycleReferenceLines } from "./BillingCycleReferenceLines";
 import { ClientChartMount } from "./ClientChartMount";
 import { getChartTheme } from "./chartTheme";
 import {
@@ -40,6 +41,76 @@ interface AverageTokenPriceChartProps {
 }
 
 const formatPrice = (value: number) => `$${value.toFixed(2)}`;
+const ROLLING_DAYS = 7;
+
+type PriceChartPoint = {
+	name: string;
+	pricePer1M: number | null;
+	dailyPricePer1M: number | null;
+	cost: number;
+	pricedCost: number;
+	totalTokens: number;
+};
+
+const buildRollingPriceSeries = (
+	timeseries: TimeseriesData[],
+	windowDays: number,
+): PriceChartPoint[] =>
+	timeseries.map((d, index) => {
+		const dailyPricePer1M =
+			d.totalTokens > 0 ? (d.pricedCost / d.totalTokens) * 1_000_000 : null;
+		const window = timeseries.slice(
+			Math.max(0, index - windowDays + 1),
+			index + 1,
+		);
+		const pricedCost = window.reduce((sum, row) => sum + row.pricedCost, 0);
+		const totalTokens = window.reduce((sum, row) => sum + row.totalTokens, 0);
+		const pricePer1M =
+			totalTokens > 0 ? (pricedCost / totalTokens) * 1_000_000 : null;
+		return {
+			name: d.name,
+			pricePer1M,
+			dailyPricePer1M,
+			cost: d.cost,
+			pricedCost: d.pricedCost,
+			totalTokens: d.totalTokens,
+		};
+	});
+
+function PriceTooltip({
+	active,
+	payload,
+	label,
+}: {
+	active?: boolean;
+	payload?: { payload: PriceChartPoint }[];
+	label?: string;
+}) {
+	if (!active || !payload?.[0]) return null;
+	const point = payload[0].payload;
+	return (
+		<div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs shadow-md dark:border-slate-700 dark:bg-slate-900">
+			<p className="mb-1.5 font-semibold text-slate-900 dark:text-slate-100">
+				{label}
+			</p>
+			<p className="tabular-nums text-slate-700 dark:text-slate-300">
+				{ROLLING_DAYS}-day avg:{" "}
+				{point.pricePer1M != null ? formatPrice(point.pricePer1M) : "—"} / 1M
+			</p>
+			<p className="tabular-nums text-slate-500 dark:text-slate-400">
+				This day:{" "}
+				{point.dailyPricePer1M != null
+					? formatPrice(point.dailyPricePer1M)
+					: "—"}{" "}
+				/ 1M
+			</p>
+			<p className="mt-1 tabular-nums text-slate-500 dark:text-slate-400">
+				{point.totalTokens.toLocaleString()} tokens ·{" "}
+				{formatPrice(point.pricedCost)} metered
+			</p>
+		</div>
+	);
+}
 
 export const AverageTokenPriceChart = ({
 	timeseries,
@@ -55,14 +126,7 @@ export const AverageTokenPriceChart = ({
 	const chartTheme = useMemo(() => getChartTheme(isDark), [isDark]);
 
 	const chartData = useMemo(
-		() =>
-			timeseries.map((d) => ({
-				name: d.name,
-				pricePer1M:
-					d.totalTokens > 0 ? (d.cost / d.totalTokens) * 1_000_000 : null,
-				cost: d.cost,
-				totalTokens: d.totalTokens,
-			})),
+		() => buildRollingPriceSeries(timeseries, ROLLING_DAYS),
 		[timeseries],
 	);
 
@@ -96,7 +160,7 @@ export const AverageTokenPriceChart = ({
 		<div className={shellClass}>
 			{stackMode ? (
 				<h3 className={dailyStackPaneTitleClass}>
-					Average token price per day
+					Avg token price ({ROLLING_DAYS}-day blend)
 				</h3>
 			) : (
 				<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -106,11 +170,12 @@ export const AverageTokenPriceChart = ({
 						</div>
 						<div>
 							<h2 className="text-xl font-bold text-slate-900 dark:text-white">
-								Average token price per day
+								Average token price ({ROLLING_DAYS}-day blend)
 							</h2>
 							<p className="text-sm text-slate-700 dark:text-slate-300">
-								Daily blend of cost ÷ tokens ($/1M). Expensive model days read
-								higher; eco-model days read lower.
+								Trailing {ROLLING_DAYS}-day sum of metered cost ÷ tokens ($/1M).
+								Low-volume days (e.g. on-demand at $0.04/event) spike the
+								single-day rate; the rolling line matches typical spend better.
 							</p>
 							{periodAverage != null && periodAverage > 0 && (
 								<p className="mt-1 font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
@@ -139,6 +204,10 @@ export const AverageTokenPriceChart = ({
 								strokeDasharray="3 3"
 								stroke={chartTheme.gridStroke}
 								vertical={false}
+							/>
+							<BillingCycleReferenceLines
+								names={chartData.map((d) => d.name)}
+								stroke={chartTheme.axisStroke}
 							/>
 							<XAxis
 								dataKey="name"
@@ -176,21 +245,7 @@ export const AverageTokenPriceChart = ({
 							/>
 							<Tooltip
 								{...(stackMode ? dailyStackTooltipProps : {})}
-								contentStyle={{
-									backgroundColor: chartTheme.tooltipBg,
-									border: `1px solid ${chartTheme.tooltipBorder}`,
-									borderRadius: 8,
-									boxShadow: chartTheme.tooltipShadow,
-								}}
-								labelStyle={{ color: chartTheme.tooltipLabel, fontWeight: 600 }}
-								itemStyle={{ color: chartTheme.tooltipRow }}
-								formatter={(value) => {
-									const n = Number(value);
-									if (value == null || Number.isNaN(n))
-										return ["—", "Avg price"];
-									return [formatPrice(n), "Avg price"];
-								}}
-								labelFormatter={(label) => label}
+								content={<PriceTooltip />}
 							/>
 							{periodAverage != null && periodAverage > 0 && (
 								<ReferenceLine
