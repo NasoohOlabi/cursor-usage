@@ -42,7 +42,13 @@ export interface TimeseriesData {
 	totalTokens: number;
 	inputWithCacheWrite: number;
 	outputTokens: number;
-	[key: string]: string | number;
+	/** Per-request observed $/1M (p50) for rows with tokens on this day. */
+	p50PricePer1M: number | null;
+	/** Per-request observed $/1M (p90) for rows with tokens on this day. */
+	p90PricePer1M: number | null;
+	/** Per-request observed $/1M (p99) for rows with tokens on this day. */
+	p99PricePer1M: number | null;
+	[key: string]: string | number | null;
 }
 
 export interface TimeseriesSeriesMeta {

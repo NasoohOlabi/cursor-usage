@@ -1,6 +1,4 @@
-import { Coins } from "lucide-react";
 import { useMemo } from "react";
-import { useTheme } from "../ThemeContext";
 import { BillingCycleReferenceLines } from "./BillingCycleReferenceLines";
 import { ClientChartMount } from "./ClientChartMount";
 import { getChartTheme } from "./chartTheme";
@@ -9,7 +7,6 @@ import {
 	DAILY_STACK_SYNC_ID,
 	DAILY_STACK_Y_AXIS_WIDTH,
 	dailyStackChartMargin,
-	dailyStackMarginsMiddle,
 	dailyStackPaneTitleClass,
 	dailyStackTooltipProps,
 	dailyStackXAxisProps,
@@ -17,6 +14,7 @@ import {
 	pickXAxisTicks,
 } from "./chartLayout";
 import type { TimeseriesData } from "./types";
+import { useTheme } from "../ThemeContext";
 import {
 	CartesianGrid,
 	Line,
@@ -30,7 +28,6 @@ import {
 
 interface AverageTokenPriceChartProps {
 	timeseries: TimeseriesData[];
-	/** Blended average for the filtered range (sum cost ÷ sum tokens). */
 	periodAverage?: number;
 	embedded?: boolean;
 	stackMode?: boolean;
@@ -41,50 +38,63 @@ interface AverageTokenPriceChartProps {
 }
 
 const formatPrice = (value: number) => `$${value.toFixed(2)}`;
-const ROLLING_DAYS = 7;
+
+type PercentileKey = "p50PricePer1M" | "p90PricePer1M" | "p99PricePer1M";
+
+const PERCENTILE_PANES: {
+	percentile: 50 | 90 | 99;
+	dataKey: PercentileKey;
+	color: string;
+	activeColor: string;
+}[] = [
+	{
+		percentile: 50,
+		dataKey: "p50PricePer1M",
+		color: "#f59e0b",
+		activeColor: "#fbbf24",
+	},
+	{
+		percentile: 90,
+		dataKey: "p90PricePer1M",
+		color: "#f97316",
+		activeColor: "#fb923c",
+	},
+	{
+		percentile: 99,
+		dataKey: "p99PricePer1M",
+		color: "#ef4444",
+		activeColor: "#f87171",
+	},
+];
 
 type PriceChartPoint = {
 	name: string;
 	pricePer1M: number | null;
-	dailyPricePer1M: number | null;
-	cost: number;
 	pricedCost: number;
 	totalTokens: number;
 };
 
-const buildRollingPriceSeries = (
+const buildPercentileSeries = (
 	timeseries: TimeseriesData[],
-	windowDays: number,
+	dataKey: PercentileKey,
 ): PriceChartPoint[] =>
-	timeseries.map((d, index) => {
-		const dailyPricePer1M =
-			d.totalTokens > 0 ? (d.pricedCost / d.totalTokens) * 1_000_000 : null;
-		const window = timeseries.slice(
-			Math.max(0, index - windowDays + 1),
-			index + 1,
-		);
-		const pricedCost = window.reduce((sum, row) => sum + row.pricedCost, 0);
-		const totalTokens = window.reduce((sum, row) => sum + row.totalTokens, 0);
-		const pricePer1M =
-			totalTokens > 0 ? (pricedCost / totalTokens) * 1_000_000 : null;
-		return {
-			name: d.name,
-			pricePer1M,
-			dailyPricePer1M,
-			cost: d.cost,
-			pricedCost: d.pricedCost,
-			totalTokens: d.totalTokens,
-		};
-	});
+	timeseries.map((d) => ({
+		name: d.name,
+		pricePer1M: d[dataKey],
+		pricedCost: d.pricedCost,
+		totalTokens: d.totalTokens,
+	}));
 
 function PriceTooltip({
 	active,
 	payload,
 	label,
+	percentile,
 }: {
 	active?: boolean;
 	payload?: { payload: PriceChartPoint }[];
 	label?: string;
+	percentile: number;
 }) {
 	if (!active || !payload?.[0]) return null;
 	const point = payload[0].payload;
@@ -94,15 +104,8 @@ function PriceTooltip({
 				{label}
 			</p>
 			<p className="tabular-nums text-slate-700 dark:text-slate-300">
-				{ROLLING_DAYS}-day avg:{" "}
+				P{percentile}:{" "}
 				{point.pricePer1M != null ? formatPrice(point.pricePer1M) : "—"} / 1M
-			</p>
-			<p className="tabular-nums text-slate-500 dark:text-slate-400">
-				This day:{" "}
-				{point.dailyPricePer1M != null
-					? formatPrice(point.dailyPricePer1M)
-					: "—"}{" "}
-				/ 1M
 			</p>
 			<p className="mt-1 tabular-nums text-slate-500 dark:text-slate-400">
 				{point.totalTokens.toLocaleString()} tokens ·{" "}
@@ -112,27 +115,36 @@ function PriceTooltip({
 	);
 }
 
-export const AverageTokenPriceChart = ({
+function PercentilePricePane({
+	percentile,
+	dataKey,
+	color,
+	activeColor,
 	timeseries,
 	periodAverage,
-	embedded = false,
-	stackMode = false,
-	syncId = DAILY_STACK_SYNC_ID,
-	xTicks: xTicksProp,
-	chartHeight = DAILY_STACK_CHART_HEIGHT_PX,
-	yAxisWidth = DAILY_STACK_Y_AXIS_WIDTH,
-}: AverageTokenPriceChartProps) => {
-	const { isDark } = useTheme();
-	const chartTheme = useMemo(() => getChartTheme(isDark), [isDark]);
-
+	stackMode,
+	syncId,
+	xTicks,
+	chartHeight,
+	yAxisWidth,
+	chartTheme,
+}: {
+	percentile: 50 | 90 | 99;
+	dataKey: PercentileKey;
+	color: string;
+	activeColor: string;
+	timeseries: TimeseriesData[];
+	periodAverage?: number;
+	stackMode: boolean;
+	syncId: string;
+	xTicks: string[];
+	chartHeight: number;
+	yAxisWidth: number;
+	chartTheme: ReturnType<typeof getChartTheme>;
+}) {
 	const chartData = useMemo(
-		() => buildRollingPriceSeries(timeseries, ROLLING_DAYS),
-		[timeseries],
-	);
-
-	const xTicks = useMemo(
-		() => xTicksProp ?? pickXAxisTicks(chartData.map((d) => d.name)),
-		[chartData, xTicksProp],
+		() => buildPercentileSeries(timeseries, dataKey),
+		[timeseries, dataKey],
 	);
 
 	const yDomain = useMemo(() => {
@@ -151,42 +163,13 @@ export const AverageTokenPriceChart = ({
 	const hasPricedDay = chartData.some((d) => d.pricePer1M != null);
 	if (!hasPricedDay) return null;
 
-	const shellClass =
-		embedded || stackMode
-			? "w-full"
-			: "rounded-2xl border border-slate-200/90 bg-white/70 p-6 shadow-sm transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-700";
-
 	return (
-		<div className={shellClass}>
-			{stackMode ? (
+		<div className="w-full">
+			{stackMode && (
 				<h3 className={dailyStackPaneTitleClass}>
-					Avg token price ({ROLLING_DAYS}-day blend)
+					Token price P{percentile}
 				</h3>
-			) : (
-				<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-					<div className="flex items-start gap-3">
-						<div className="shrink-0 rounded-lg bg-amber-500/10 p-2">
-							<Coins className="h-6 w-6 text-amber-500 dark:text-amber-400" />
-						</div>
-						<div>
-							<h2 className="text-xl font-bold text-slate-900 dark:text-white">
-								Average token price ({ROLLING_DAYS}-day blend)
-							</h2>
-							<p className="text-sm text-slate-700 dark:text-slate-300">
-								Trailing {ROLLING_DAYS}-day sum of metered cost ÷ tokens ($/1M).
-								Low-volume days (e.g. on-demand at $0.04/event) spike the
-								single-day rate; the rolling line matches typical spend better.
-							</p>
-							{periodAverage != null && periodAverage > 0 && (
-								<p className="mt-1 font-mono text-xs tabular-nums text-slate-500 dark:text-slate-400">
-									Period average: {formatPrice(periodAverage)} / 1M tokens
-								</p>
-							)}
-						</div>
-					</div>
-				</div>
 			)}
-
 			<div
 				className="w-full min-w-0 shrink-0 overflow-visible"
 				style={{ height: chartHeight }}
@@ -196,9 +179,7 @@ export const AverageTokenPriceChart = ({
 						<LineChart
 							syncId={syncId}
 							data={chartData}
-							margin={
-								stackMode ? dailyStackChartMargin : dailyStackMarginsMiddle
-							}
+							margin={dailyStackChartMargin}
 						>
 							<CartesianGrid
 								strokeDasharray="3 3"
@@ -230,51 +211,29 @@ export const AverageTokenPriceChart = ({
 								tickLine={false}
 								axisLine={false}
 								tickFormatter={(v) => `$${Number(v).toFixed(2)}`}
-								label={
-									stackMode
-										? undefined
-										: {
-												value: "$ / 1M tokens",
-												angle: -90,
-												position: "insideLeft",
-												fill: chartTheme.axisLabelFill,
-												fontSize: 11,
-												dx: -4,
-											}
-								}
 							/>
 							<Tooltip
 								{...(stackMode ? dailyStackTooltipProps : {})}
-								content={<PriceTooltip />}
+								content={<PriceTooltip percentile={percentile} />}
 							/>
 							{periodAverage != null && periodAverage > 0 && (
 								<ReferenceLine
 									y={periodAverage}
 									stroke="#94a3b8"
 									strokeDasharray="6 4"
-									label={
-										stackMode
-											? undefined
-											: {
-													value: "Period avg",
-													position: "insideTopRight",
-													fill: chartTheme.axisLabelFill,
-													fontSize: 10,
-												}
-									}
 								/>
 							)}
 							<Line
 								type="monotone"
 								dataKey="pricePer1M"
-								stroke="#f59e0b"
+								stroke={color}
 								strokeWidth={2.5}
 								connectNulls
-								dot={{ r: 3, fill: "#f59e0b", strokeWidth: 0 }}
+								dot={{ r: 3, fill: color, strokeWidth: 0 }}
 								activeDot={{
 									r: 5,
-									fill: "#fbbf24",
-									stroke: "#f59e0b",
+									fill: activeColor,
+									stroke: color,
 									strokeWidth: 2,
 								}}
 							/>
@@ -282,6 +241,61 @@ export const AverageTokenPriceChart = ({
 					</ResponsiveContainer>
 				</ClientChartMount>
 			</div>
+		</div>
+	);
+}
+
+export const AverageTokenPriceChart = ({
+	timeseries,
+	periodAverage,
+	embedded = false,
+	stackMode = false,
+	syncId = DAILY_STACK_SYNC_ID,
+	xTicks: xTicksProp,
+	chartHeight = DAILY_STACK_CHART_HEIGHT_PX,
+	yAxisWidth = DAILY_STACK_Y_AXIS_WIDTH,
+}: AverageTokenPriceChartProps) => {
+	const { isDark } = useTheme();
+	const chartTheme = useMemo(() => getChartTheme(isDark), [isDark]);
+
+	const xTicks = useMemo(
+		() => xTicksProp ?? pickXAxisTicks(timeseries.map((d) => d.name)),
+		[timeseries, xTicksProp],
+	);
+
+	const hasAnyPricedDay = timeseries.some(
+		(d) => d.p50PricePer1M != null || d.p90PricePer1M != null || d.p99PricePer1M != null,
+	);
+	if (!hasAnyPricedDay) return null;
+
+	const shellClass =
+		embedded || stackMode
+			? "w-full flex flex-col gap-2"
+			: "rounded-2xl border border-slate-200/90 bg-white/70 p-6 shadow-sm transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-700 flex flex-col gap-4";
+
+	return (
+		<div className={shellClass}>
+			{PERCENTILE_PANES.map((pane, index) => (
+				<div key={pane.dataKey} className="w-full">
+					{index > 0 && stackMode && (
+						<div
+							className="mb-2 border-t border-slate-200/80 dark:border-slate-800"
+							aria-hidden
+						/>
+					)}
+					<PercentilePricePane
+						{...pane}
+						timeseries={timeseries}
+						periodAverage={periodAverage}
+						stackMode={stackMode}
+						syncId={syncId}
+						xTicks={xTicks}
+						chartHeight={chartHeight}
+						yAxisWidth={yAxisWidth}
+						chartTheme={chartTheme}
+					/>
+				</div>
+			))}
 		</div>
 	);
 };

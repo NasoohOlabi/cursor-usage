@@ -66,6 +66,16 @@ export const COLORS = [
 	"#eab308",
 ];
 
+/** Nearest-rank percentile on a pre-sorted array (same as model breakdown). */
+export function getPercentileValue(
+	sortedValues: number[],
+	percentile: number,
+): number {
+	if (sortedValues.length === 0) return 0;
+	const idx = Math.floor(percentile * (sortedValues.length - 1));
+	return sortedValues[idx] ?? 0;
+}
+
 export function summarizeMetricExtents<T extends Record<string, unknown>>(
 	values: T[],
 	key: keyof T & string
