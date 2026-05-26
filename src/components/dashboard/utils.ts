@@ -1,6 +1,4 @@
-/** Public folder asset URL (respects Vite `base`, e.g. `/cursor-usage/` on Pages). */
-const publicAsset = (file: string) =>
-	`${import.meta.env.BASE_URL}${file.replace(/^\//, "")}`;
+import { modelIcons } from "@/assets/model-icons";
 
 export const getProviderName = (modelName: string) => {
 	const name = modelName.toLowerCase();
@@ -34,39 +32,27 @@ export type ModelIconAsset =
 export const getModelIconAsset = (modelName: string): ModelIconAsset | null => {
 	const name = modelName.toLowerCase();
 	if (name.includes("deepseek"))
-		return { mode: "single", src: publicAsset("deepseek.svg") };
+		return { mode: "single", src: modelIcons.deepseek };
 	if (name.includes("gemini"))
-		return { mode: "single", src: publicAsset("gemini.svg") };
+		return { mode: "single", src: modelIcons.gemini };
 	if (name.includes("claude") || name.includes("anthropic"))
-		return { mode: "single", src: publicAsset("anthropic.svg") };
+		return { mode: "single", src: modelIcons.anthropic };
 	if (
 		name.includes("gpt") ||
 		name.includes("openai") ||
 		name.includes("o1") ||
 		name.includes("o3")
 	)
-		return {
-			mode: "theme",
-			light: publicAsset("openAi.svg"),
-			dark: publicAsset("openAi.dark.svg"),
-		};
+		return { mode: "theme", ...modelIcons.openAi };
 	if (name.includes("grok"))
-		return {
-			mode: "theme",
-			light: publicAsset("grok.light.png"),
-			dark: publicAsset("grok.dark.png"),
-		};
+		return { mode: "theme", ...modelIcons.grok };
 	if (
 		name.includes("cursor") ||
 		name.includes("composer") ||
 		name.includes("agent_review") ||
 		name.includes("auto")
 	)
-		return {
-			mode: "theme",
-			light: publicAsset("cursor.light.png"),
-			dark: publicAsset("cursor.dark.png"),
-		};
+		return { mode: "theme", ...modelIcons.cursor };
 	return null;
 };
 
