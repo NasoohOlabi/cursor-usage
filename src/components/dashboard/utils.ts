@@ -1,3 +1,7 @@
+/** Public folder asset URL (respects Vite `base`, e.g. `/cursor-usage/` on Pages). */
+const publicAsset = (file: string) =>
+	`${import.meta.env.BASE_URL}${file.replace(/^\//, "")}`;
+
 export const getProviderName = (modelName: string) => {
 	const name = modelName.toLowerCase();
 	if (name.includes("deepseek")) return "DeepSeek";
@@ -29,19 +33,29 @@ export type ModelIconAsset =
 
 export const getModelIconAsset = (modelName: string): ModelIconAsset | null => {
 	const name = modelName.toLowerCase();
-	if (name.includes("deepseek")) return { mode: "single", src: "/deepseek.svg" };
-	if (name.includes("gemini")) return { mode: "single", src: "/gemini.svg" };
+	if (name.includes("deepseek"))
+		return { mode: "single", src: publicAsset("deepseek.svg") };
+	if (name.includes("gemini"))
+		return { mode: "single", src: publicAsset("gemini.svg") };
 	if (name.includes("claude") || name.includes("anthropic"))
-		return { mode: "single", src: "/anthropic.svg" };
+		return { mode: "single", src: publicAsset("anthropic.svg") };
 	if (
 		name.includes("gpt") ||
 		name.includes("openai") ||
 		name.includes("o1") ||
 		name.includes("o3")
 	)
-		return { mode: "theme", light: "/openAi.svg", dark: "/openAi.dark.svg" };
+		return {
+			mode: "theme",
+			light: publicAsset("openAi.svg"),
+			dark: publicAsset("openAi.dark.svg"),
+		};
 	if (name.includes("grok"))
-		return { mode: "theme", light: "/grok.light.png", dark: "/grok.dark.png" };
+		return {
+			mode: "theme",
+			light: publicAsset("grok.light.png"),
+			dark: publicAsset("grok.dark.png"),
+		};
 	if (
 		name.includes("cursor") ||
 		name.includes("composer") ||
@@ -50,8 +64,8 @@ export const getModelIconAsset = (modelName: string): ModelIconAsset | null => {
 	)
 		return {
 			mode: "theme",
-			light: "/cursor.light.png",
-			dark: "/cursor.dark.png",
+			light: publicAsset("cursor.light.png"),
+			dark: publicAsset("cursor.dark.png"),
 		};
 	return null;
 };
