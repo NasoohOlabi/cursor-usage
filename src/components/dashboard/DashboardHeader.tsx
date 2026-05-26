@@ -62,7 +62,7 @@ export const DashboardHeader = ({
 				</div>
 			</div>
 
-			<div className="flex flex-wrap md:flex-nowrap items-center gap-2">
+			<div className="ml-auto flex flex-wrap md:flex-nowrap items-center justify-end gap-2">
 				{showAvgTokenPrice && (
 					<div
 						className="flex items-center gap-2 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm dark:shadow-none"

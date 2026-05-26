@@ -11,8 +11,8 @@ export default function Header() {
 		useDateRange();
 
 	return (
-		<header className="p-3 md:p-4 flex items-center gap-3 md:gap-4 bg-gradient-to-r from-slate-100 via-white to-slate-100/90 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-slate-900 dark:text-white border-b border-slate-200/80 dark:border-cyan-500/20 shadow-sm dark:shadow-[0_4px_24px_-4px_rgba(34,211,238,0.15)]">
-			<h1 className="text-xl font-semibold shrink-0">
+		<header className="p-3 md:p-4 grid grid-cols-[auto_1fr_auto] items-center gap-3 md:gap-4 bg-gradient-to-r from-slate-100 via-white to-slate-100/90 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-slate-900 dark:text-white border-b border-slate-200/80 dark:border-cyan-500/20 shadow-sm dark:shadow-[0_4px_24px_-4px_rgba(34,211,238,0.15)]">
+			<h1 className="text-xl font-semibold shrink-0 justify-self-start">
 				<Link
 					to="/"
 					className="group flex items-center gap-2.5 rounded-xl px-1 py-0.5 transition-transform hover:scale-[1.02] active:scale-[0.98]"
@@ -42,8 +42,8 @@ export default function Header() {
 				</Link>
 			</h1>
 
-			{dateBounds && (
-				<div className="flex-1 flex justify-center min-w-0 px-1 md:px-4">
+			{dateBounds ? (
+				<div className="flex justify-center min-w-0 w-full px-2 md:px-4">
 					<DateRangeSlider
 						variant="compact"
 						bounds={dateBounds}
@@ -53,9 +53,11 @@ export default function Header() {
 						onToDateChange={setToDate}
 					/>
 				</div>
+			) : (
+				<div aria-hidden />
 			)}
 
-			<div className="shrink-0 flex items-center gap-1">
+			<div className="shrink-0 flex items-center gap-1 justify-self-end">
 				<button
 					type="button"
 					onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
