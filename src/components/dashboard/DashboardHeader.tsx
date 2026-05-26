@@ -21,10 +21,6 @@ interface DashboardHeaderProps {
 	pricingLastUpdated: string | null;
 	onOpenFilter: () => void;
 	selectedModelsCount: number;
-	fromDate: string;
-	setFromDate: (date: string) => void;
-	toDate: string;
-	setToDate: (date: string) => void;
 	globalUsage?: GlobalUsageTotals | null;
 }
 
@@ -37,10 +33,6 @@ export const DashboardHeader = ({
 	pricingLastUpdated,
 	onOpenFilter,
 	selectedModelsCount,
-	fromDate,
-	setFromDate,
-	toDate,
-	setToDate,
 	globalUsage,
 }: DashboardHeaderProps) => {
 	const showAvgTokenPrice =
@@ -71,40 +63,6 @@ export const DashboardHeader = ({
 			</div>
 
 			<div className="flex flex-wrap md:flex-nowrap items-center gap-2">
-				<div className="flex items-center gap-1.5 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm dark:shadow-none">
-					<div className="flex flex-col">
-						<label
-							htmlFor="header-fromDate"
-							className="text-[10px] text-slate-500 dark:text-slate-500 font-medium uppercase tracking-wider"
-						>
-							From
-						</label>
-						<input
-							type="date"
-							id="header-fromDate"
-							value={fromDate}
-							onChange={(e) => setFromDate(e.target.value)}
-							className="bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-0 transition-all cursor-pointer"
-						/>
-					</div>
-					<div className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
-					<div className="flex flex-col">
-						<label
-							htmlFor="header-toDate"
-							className="text-[10px] text-slate-500 dark:text-slate-500 font-medium uppercase tracking-wider"
-						>
-							To
-						</label>
-						<input
-							type="date"
-							id="header-toDate"
-							value={toDate}
-							onChange={(e) => setToDate(e.target.value)}
-							className="bg-transparent text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-0 transition-all cursor-pointer"
-						/>
-					</div>
-				</div>
-
 				{showAvgTokenPrice && (
 					<div
 						className="flex items-center gap-2 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm dark:shadow-none"

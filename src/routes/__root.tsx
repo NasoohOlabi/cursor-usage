@@ -1,6 +1,7 @@
 import { Outlet, createRootRoute } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 
+import { DateRangeProvider } from "../components/DateRangeContext";
 import Header from "../components/Header";
 import { ThemeProvider } from "../components/ThemeContext";
 
@@ -21,9 +22,13 @@ export const Route = createRootRoute({
 function RootLayout() {
 	return (
 		<ThemeProvider>
-			<Header />
-			<Outlet />
-			{import.meta.env.DEV ? <TanStackRouterDevtools position="bottom-right" /> : null}
+			<DateRangeProvider>
+				<Header />
+				<Outlet />
+				{import.meta.env.DEV ? (
+					<TanStackRouterDevtools position="bottom-right" />
+				) : null}
+			</DateRangeProvider>
 		</ThemeProvider>
 	);
 }

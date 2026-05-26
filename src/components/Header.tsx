@@ -1,14 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import { Activity, Moon, Sun } from "lucide-react";
 
+import { useDateRange } from "./DateRangeContext";
+import { DateRangeSlider } from "./dashboard/DateRangeSlider";
 import { useTheme } from "./ThemeContext";
 
 export default function Header() {
 	const { theme, setTheme } = useTheme();
+	const { dateBounds, fromDate, toDate, setFromDate, setToDate } =
+		useDateRange();
 
 	return (
-		<header className="p-4 flex items-center gap-3 bg-gradient-to-r from-slate-100 via-white to-slate-100/90 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-slate-900 dark:text-white border-b border-slate-200/80 dark:border-cyan-500/20 shadow-sm dark:shadow-[0_4px_24px_-4px_rgba(34,211,238,0.15)]">
-			<h1 className="text-xl font-semibold">
+		<header className="p-3 md:p-4 flex items-center gap-3 md:gap-4 bg-gradient-to-r from-slate-100 via-white to-slate-100/90 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 text-slate-900 dark:text-white border-b border-slate-200/80 dark:border-cyan-500/20 shadow-sm dark:shadow-[0_4px_24px_-4px_rgba(34,211,238,0.15)]">
+			<h1 className="text-xl font-semibold shrink-0">
 				<Link
 					to="/"
 					className="group flex items-center gap-2.5 rounded-xl px-1 py-0.5 transition-transform hover:scale-[1.02] active:scale-[0.98]"
@@ -37,7 +41,21 @@ export default function Header() {
 					</span>
 				</Link>
 			</h1>
-			<div className="ml-auto flex items-center gap-1">
+
+			{dateBounds && (
+				<div className="flex-1 flex justify-center min-w-0 px-1 md:px-4">
+					<DateRangeSlider
+						variant="compact"
+						bounds={dateBounds}
+						fromDate={fromDate}
+						toDate={toDate}
+						onFromDateChange={setFromDate}
+						onToDateChange={setToDate}
+					/>
+				</div>
+			)}
+
+			<div className="shrink-0 flex items-center gap-1">
 				<button
 					type="button"
 					onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 // Components
+import { useDateRange } from "../components/DateRangeContext";
 import { DashboardHeader } from "../components/dashboard/DashboardHeader";
 import { DistributionCharts } from "../components/dashboard/DistributionCharts";
 import { EmptyState } from "../components/dashboard/EmptyState";
@@ -38,6 +39,10 @@ import {
 	storeCsvRows,
 	type UsageRow,
 } from "../lib/csv";
+import {
+	computeDateBounds,
+	rowDateString,
+} from "../lib/dateRange";
 
 export const Route = createFileRoute("/")({
 	component: Dashboard,
@@ -68,8 +73,7 @@ function Dashboard() {
 
 	const [isModalOpen, setIsModalOpen] = useState(false);
 	const [selectedModels, setSelectedModels] = useState<string[]>([]);
-	const [fromDate, setFromDate] = useState<string>("");
-	const [toDate, setToDate] = useState<string>("");
+	const { fromDate, toDate, setDateBounds } = useDateRange();
 
 	useEffect(() => {
 		let cancelled = false;
@@ -113,7 +117,7 @@ function Dashboard() {
 			.replace(/^_+|_+$/g, "");
 	}, []);
 
-	// Load selected models and dates from localStorage on mount
+	// Load selected models from localStorage on mount
 	useEffect(() => {
 		const savedModels = localStorage.getItem("selectedModels");
 		if (savedModels) {
@@ -124,11 +128,6 @@ function Dashboard() {
 			}
 		}
 
-		const savedFromDate = localStorage.getItem("fromDate");
-		if (savedFromDate) setFromDate(savedFromDate);
-
-		const savedToDate = localStorage.getItem("toDate");
-		if (savedToDate) setToDate(savedToDate);
 	}, []);
 
 	// Include newly seen model names in the selection when filters are active, so
@@ -141,6 +140,21 @@ function Dashboard() {
 		return models.sort();
 	}, [data]);
 
+	const dateBounds = useMemo(() => {
+		if (!data?.length) return null;
+		const dates: string[] = [];
+		for (const row of data) {
+			const d = rowDateString(row.Date);
+			if (d) dates.push(d);
+		}
+		return computeDateBounds(dates);
+	}, [data]);
+
+	useEffect(() => {
+		setDateBounds(dateBounds);
+		return () => setDateBounds(null);
+	}, [dateBounds, setDateBounds]);
+
 	useEffect(() => {
 		setSelectedModels((prev) => {
 			if (prev.length === 0) return prev;
@@ -151,7 +165,7 @@ function Dashboard() {
 		});
 	}, [allModels]);
 
-	// Save selected models and dates to localStorage
+	// Save selected models to localStorage
 	useEffect(() => {
 		if (selectedModels.length > 0) {
 			localStorage.setItem("selectedModels", JSON.stringify(selectedModels));
@@ -159,22 +173,6 @@ function Dashboard() {
 			localStorage.removeItem("selectedModels");
 		}
 	}, [selectedModels]);
-
-	useEffect(() => {
-		if (fromDate) {
-			localStorage.setItem("fromDate", fromDate);
-		} else {
-			localStorage.removeItem("fromDate");
-		}
-	}, [fromDate]);
-
-	useEffect(() => {
-		if (toDate) {
-			localStorage.setItem("toDate", toDate);
-		} else {
-			localStorage.removeItem("toDate");
-		}
-	}, [toDate]);
 
 	const onFileUpload = useCallback(
 		async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -863,10 +861,6 @@ function Dashboard() {
 				pricingLastUpdated={pricingLastUpdated}
 				onOpenFilter={() => setIsModalOpen(true)}
 				selectedModelsCount={selectedModels.length}
-				fromDate={fromDate}
-				setFromDate={setFromDate}
-				toDate={toDate}
-				setToDate={setToDate}
 				globalUsage={processedData?.globalUsage}
 			/>
 
