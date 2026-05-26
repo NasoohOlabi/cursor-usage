@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { DollarSign, Activity } from "lucide-react";
+import { DollarSign, Activity, Coins } from "lucide-react";
 import {
 	ResponsiveContainer,
 	PieChart,
@@ -30,12 +30,16 @@ export const DistributionCharts = ({
 		return providerData.reduce((sum, item) => sum + (Number(item.cost) || 0), 0);
 	}, [providerData]);
 
+	const providerTotalTokens = useMemo(() => {
+		return providerData.reduce((sum, item) => sum + (Number(item.total) || 0), 0);
+	}, [providerData]);
+
 	const totalRequests = useMemo(() => {
 		return usageByKind.reduce((sum, item) => sum + (Number(item.value) || 0), 0);
 	}, [usageByKind]);
 
 	return (
-		<div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+		<div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 			{/* Provider Cost Share */}
 			<div className="rounded-xl border border-slate-200/90 bg-white/70 p-3 shadow-sm transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-700">
 				<div className="mb-2 flex items-center gap-2">
@@ -79,6 +83,61 @@ export const DistributionCharts = ({
 												? (numericValue / providerTotalCost) * 100
 												: 0;
 										return [`$${numericValue.toFixed(4)} (${ratio.toFixed(1)}%)`, name];
+									}}
+								/>
+								<Legend
+									verticalAlign="bottom"
+									wrapperStyle={{ fontSize: 11, paddingTop: 4 }}
+								/>
+							</PieChart>
+						</ResponsiveContainer>
+					</ClientChartMount>
+				</div>
+			</div>
+
+			{/* Provider Token Share */}
+			<div className="rounded-xl border border-slate-200/90 bg-white/70 p-3 shadow-sm transition-colors hover:border-slate-300 dark:border-slate-800 dark:bg-slate-900/50 dark:shadow-none dark:hover:border-slate-700">
+				<div className="mb-2 flex items-center gap-2">
+					<div className="p-1.5 bg-violet-500/10 rounded-md">
+						<Coins className="h-6 w-6 text-violet-600 dark:text-violet-400" />
+					</div>
+					<h2 className="text-xl font-bold text-slate-900 dark:text-white">Tokens by Provider</h2>
+				</div>
+				<div className="h-[210px] w-full min-w-0">
+					<ClientChartMount className="h-full w-full min-w-0">
+						<ResponsiveContainer width="100%" height="100%" minWidth={0}>
+							<PieChart margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+								<Pie
+									data={providerData}
+									dataKey="total"
+									nameKey="name"
+									cx="50%"
+									cy="45%"
+									innerRadius={42}
+									outerRadius={72}
+									paddingAngle={2}
+									stroke="none"
+								>
+									{providerData.map((p, index) => (
+										<Cell key={p.name} fill={COLORS[index % COLORS.length]} />
+									))}
+								</Pie>
+								<Tooltip
+									contentStyle={{
+										backgroundColor: chartTheme.tooltipBg,
+										border: `1px solid ${chartTheme.tooltipBorder}`,
+										borderRadius: "8px",
+										boxShadow: chartTheme.tooltipShadow,
+									}}
+									itemStyle={{ color: chartTheme.tooltipRow }}
+									labelStyle={{ color: chartTheme.tooltipLabel }}
+									formatter={(value: any, name: any) => {
+										const numericValue = Number(value || 0);
+										const ratio =
+											providerTotalTokens > 0
+												? (numericValue / providerTotalTokens) * 100
+												: 0;
+										return [`${numericValue.toLocaleString()} (${ratio.toFixed(1)}%)`, name];
 									}}
 								/>
 								<Legend
