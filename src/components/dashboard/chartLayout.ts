@@ -20,7 +20,7 @@ export function dailyStackPlotMargin(bottom: number) {
 	return {
 		left: 0,
 		right: 8,
-		top: 8,
+		top: 14,
 		bottom,
 	} as const;
 }
@@ -57,6 +57,27 @@ export function pickBillingCycleDates(names: string[]): string[] {
 		const day = Number(name.slice(8, 10));
 		return day === BILLING_CYCLE_DAY_OF_MONTH;
 	});
+}
+
+const MONTH_SHORT = [
+	"Jan",
+	"Feb",
+	"Mar",
+	"Apr",
+	"May",
+	"Jun",
+	"Jul",
+	"Aug",
+	"Sep",
+	"Oct",
+	"Nov",
+	"Dec",
+] as const;
+
+/** Short month label for a `YYYY-MM-DD` billing-cycle divider. */
+export function formatBillingCycleMonthLabel(dateStr: string): string {
+	const month = Number(dateStr.slice(5, 7));
+	return MONTH_SHORT[month - 1] ?? "";
 }
 
 export function pickXAxisTicks(names: string[]): string[] {

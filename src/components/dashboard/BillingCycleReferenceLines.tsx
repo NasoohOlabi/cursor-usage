@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { ReferenceLine } from "recharts";
-import { pickBillingCycleDates } from "./chartLayout";
+import { formatBillingCycleMonthLabel, pickBillingCycleDates } from "./chartLayout";
 
 interface BillingCycleReferenceLinesProps {
 	names: string[];
@@ -25,6 +25,15 @@ export const BillingCycleReferenceLines = ({
 					strokeDasharray="4 4"
 					strokeOpacity={0.5}
 					ifOverflow="hidden"
+					label={{
+						value: formatBillingCycleMonthLabel(x),
+						position: "insideTopLeft",
+						fill: stroke,
+						fontSize: 9,
+						fontWeight: 600,
+						dx: 3,
+						dy: 2,
+					}}
 				/>
 			))}
 		</>
