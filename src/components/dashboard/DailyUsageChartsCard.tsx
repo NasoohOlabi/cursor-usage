@@ -85,7 +85,7 @@ export const DailyUsageChartsCard = ({
 							className="space-y-4 overflow-y-auto pr-1"
 							style={{
 								maxHeight: `min(${
-									DAILY_STACK_CHART_HEIGHT_PX * 5
+									DAILY_STACK_CHART_HEIGHT_PX * 3
 								}px, 70vh)`,
 							}}
 						>
