@@ -301,7 +301,7 @@ export const AverageTokenPriceChart = ({
 									strokeWidth={2.5}
 									connectNulls
 									hide={hidden.has(dataKey)}
-									dot={{ r: 3, fill: color, strokeWidth: 0 }}
+									dot={false}
 									activeDot={{
 										r: 5,
 										fill: activeColor,
