@@ -16,8 +16,8 @@ export const ProviderComparison = ({ providerData }: ProviderComparisonProps) =>
 				<h2 className="text-sm font-bold text-slate-900 dark:text-white">Provider Comparison</h2>
 			</div>
 			<div className="flex flex-col gap-2 sm:flex-row sm:flex-nowrap sm:overflow-x-auto sm:gap-2 sm:pb-0.5 [scrollbar-gutter:stable]">
-				{providerData
-					.sort((a, b) => b.cost - a.cost)
+				{[...providerData]
+					.toSorted((a, b) => b.cost - a.cost)
 					.map((p) => (
 						<div
 							key={p.name}

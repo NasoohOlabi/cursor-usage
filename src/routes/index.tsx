@@ -137,7 +137,7 @@ function Dashboard() {
 		const models = Array.from(
 			new Set(data.map((row) => row.Model ? String(row.Model).trim() : null).filter(Boolean))
 		) as string[];
-		return models.sort();
+		return [...models].sort((a, b) => a.localeCompare(b));
 	}, [data]);
 
 	const dateBounds = useMemo(() => {
@@ -160,7 +160,9 @@ function Dashboard() {
 			if (prev.length === 0) return prev;
 			const valid = prev.filter((m) => allModels.includes(m));
 			const missingNew = allModels.filter((m) => !prev.includes(m));
-			if (missingNew.length > 0) return [...valid, ...missingNew].sort();
+			if (missingNew.length > 0) {
+				return [...valid, ...missingNew].sort((a, b) => a.localeCompare(b));
+			}
 			return valid;
 		});
 	}, [allModels]);
@@ -320,7 +322,7 @@ function Dashboard() {
 				const cacheHitRate = totalInputTokens > 0 ? (m.cacheRead / totalInputTokens) * 100 : 0;
 				const sparklineData = Object.entries(m.sparklineMap || {})
 					.map(([date, value]) => ({ date, value: value as number }))
-					.sort((a, b) => a.date.localeCompare(b.date));
+					.toSorted((a, b) => a.date.localeCompare(b.date));
 
 				return {
 					...m,
@@ -387,13 +389,13 @@ function Dashboard() {
 			userTotals.set(user, userTotal);
 		});
 
-		const topProviders = Array.from(providerTotals.entries())
-			.sort((a, b) => b[1].cost - a[1].cost)
+		const topProviders = [...providerTotals.entries()]
+			.toSorted((a, b) => b[1].cost - a[1].cost)
 			.slice(0, 5)
 			.map(([name]) => name);
 
-		const topUsers = Array.from(userTotals.entries())
-			.sort((a, b) => b[1].cost - a[1].cost)
+		const topUsers = [...userTotals.entries()]
+			.toSorted((a, b) => b[1].cost - a[1].cost)
 			.slice(0, 5)
 			.map(([name]) => name);
 
@@ -423,7 +425,7 @@ function Dashboard() {
 		);
 
 		const topModelNames = [...modelData]
-			.sort((a: any, b: any) => b.cost - a.cost)
+			.toSorted((a: any, b: any) => b.cost - a.cost)
 			.slice(0, 15)
 			.map((m: any) => m.name as string);
 
@@ -526,7 +528,7 @@ function Dashboard() {
 						: null,
 				};
 			})
-			.sort((a: any, b: any) => a.name.localeCompare(b.name));
+			.toSorted((a: any, b: any) => a.name.localeCompare(b.name));
 
 		timeseries.forEach((row: any) => {
 			providerSeries.forEach((series) => {

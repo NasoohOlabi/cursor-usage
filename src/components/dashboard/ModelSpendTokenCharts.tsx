@@ -94,7 +94,7 @@ function ModelLineTooltip({
 			num: Number(p.value ?? 0),
 		}))
 		.filter((p) => p.num !== 0 && !Number.isNaN(p.num))
-		.sort((a, b) => b.num - a.num);
+		.toSorted((a, b) => b.num - a.num);
 
 	const labelText = label != null ? String(label) : "";
 	const totalLabel = variant === "cost" ? "Daily Cost ($)" : "Total Tokens";

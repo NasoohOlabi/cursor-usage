@@ -13,7 +13,9 @@ export function parseCsvText(content: string): UsageRow[] {
 	if (parsed.errors.length > 0) {
 		console.warn("CSV parse warnings:", parsed.errors.slice(0, 3));
 	}
-	return parsed.data.filter((row) => row && Object.keys(row).length > 0);
+	return parsed.data
+		.filter((row) => row && Object.keys(row).length > 0)
+		.map((row) => ({ ...row }));
 }
 
 export async function parseCsvFile(file: File): Promise<UsageRow[]> {
@@ -37,7 +39,9 @@ export function loadStoredCsvRows(): UsageRow[] | null {
 		const raw = localStorage.getItem(STORAGE_KEY);
 		if (!raw) return null;
 		const rows = JSON.parse(raw) as UsageRow[];
-		return Array.isArray(rows) && rows.length > 0 ? rows : null;
+		return Array.isArray(rows) && rows.length > 0
+			? rows.map((row) => ({ ...row }))
+			: null;
 	} catch {
 		return null;
 	}
