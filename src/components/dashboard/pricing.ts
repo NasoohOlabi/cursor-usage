@@ -31,6 +31,7 @@ export const DEFAULT_DOCS_PRICING: DocsPricingMap = {
 	"composer-2.5-fast": { input: 3, cacheWrite: null, cacheRead: 0.5, output: 15 },
 	"gemini-2.5-flash": { input: 0.3, cacheWrite: null, cacheRead: 0.03, output: 2.5 },
 	"gemini-3-flash": { input: 0.5, cacheWrite: null, cacheRead: 0.05, output: 3 },
+	"gemini-3.5-flash": { input: 1.5, cacheWrite: null, cacheRead: 0.15, output: 9 },
 	"gemini-3-pro": { input: 2, cacheWrite: null, cacheRead: 0.2, output: 12 },
 	"gemini-3.1-pro": { input: 2, cacheWrite: null, cacheRead: 0.2, output: 12 },
 	"gpt-5": { input: 1.25, cacheWrite: null, cacheRead: 0.125, output: 10 },
@@ -61,6 +62,7 @@ export const CURSOR_PRICING_DOC_PATHS = [
 	"/docs/models/claude-4-5-opus",
 	"/docs/models/gemini-3-1-pro",
 	"/docs/models/gemini-3-flash",
+	"/docs/models/gemini-3-5-flash",
 	"/docs/models/gemini-2-5-flash",
 	"/docs/models/grok-4-3",
 ] as const;
@@ -89,6 +91,7 @@ const DISPLAY_NAME_TO_KEY: Record<string, string> = {
 	"Gemini 3.1 Pro": "gemini-3.1-pro",
 	"Gemini 3 Pro": "gemini-3-pro",
 	"Gemini 3 Flash": "gemini-3-flash",
+	"Gemini 3.5 Flash": "gemini-3.5-flash",
 	"Gemini 2.5 Flash": "gemini-2.5-flash",
 	"Grok 4.3": "grok-4.3",
 	"Grok Code": "grok-code",
@@ -130,6 +133,7 @@ export const resolvePricingKeyFromDocsRow = (
 		return /\(fast\)/i.test(trimmed) ? "composer-2.5-fast" : "composer-2.5";
 	}
 	if (slug === "claude-opus-4-7") return "claude-4.7-opus";
+	if (slug === "gemini-3-5-flash") return "gemini-3.5-flash";
 	if (slug.startsWith("cursor-composer-")) {
 		return slug.replace(/^cursor-composer-/, "composer-");
 	}
@@ -180,8 +184,8 @@ export const normalizeModelForPricing = (rawModelName: string) => {
 	if (model.includes("composer-2-fast")) return "composer-2-fast";
 	if (model.includes("composer-2")) return "composer-2";
 	if (model.includes("gemini-3.1-pro")) return "gemini-3.1-pro";
-	if (model.includes("gemini-3.5-flash") || model.includes("gemini-3-flash"))
-		return "gemini-3-flash";
+	if (model.includes("gemini-3.5-flash")) return "gemini-3.5-flash";
+	if (model.includes("gemini-3-flash")) return "gemini-3-flash";
 	if (model.includes("gemini-3-pro")) return "gemini-3-pro";
 	if (model.includes("gemini-2.5-flash")) return "gemini-2.5-flash";
 	if (model.includes("gpt-5.5") && model.includes("fast")) return "gpt-5.5-fast";
@@ -215,21 +219,44 @@ export const getTokenTotals = (row: Record<string, unknown>): TokenTotals => {
 	};
 };
 
-export const calculateDocsPricePer1M = (
+export interface FlatListPricing {
+	listInputPer1M: number | null;
+	listCacheWritePer1M: number | null;
+	listCacheReadPer1M: number | null;
+	listOutputPer1M: number | null;
+}
+
+export const NULL_LIST_PRICING: FlatListPricing = {
+	listInputPer1M: null,
+	listCacheWritePer1M: null,
+	listCacheReadPer1M: null,
+	listOutputPer1M: null,
+};
+
+/** Default single list rate when kind is unspecified (generation-heavy workloads). */
+export const primaryListPricePer1M = (pricing: DocsModelPricing) => pricing.output;
+
+export const flattenListPricing = (pricing: DocsModelPricing): FlatListPricing => ({
+	listInputPer1M: pricing.input,
+	listCacheWritePer1M: pricing.cacheWrite,
+	listCacheReadPer1M: pricing.cacheRead,
+	listOutputPer1M: pricing.output,
+});
+
+export const formatListPricePer1M = (value: number | null) =>
+	value == null ? "—" : `$${value.toFixed(2)}`;
+
+export const resolveDocsListPricing = (
 	modelName: string,
-	_tokenTotals: TokenTotals,
 	pricingMap: DocsPricingMap
-) => {
+): { pricing: DocsModelPricing | null; hasDocsPrice: boolean } => {
 	const pricingKey = normalizeModelForPricing(modelName);
-	if (!pricingKey) return { pricePer1M: null, hasDocsPrice: false };
+	if (!pricingKey) return { pricing: null, hasDocsPrice: false };
 
 	const pricing = pricingMap[pricingKey];
-	if (!pricing) return { pricePer1M: null, hasDocsPrice: false };
+	if (!pricing) return { pricing: null, hasDocsPrice: false };
 
-	return {
-		pricePer1M: pricing.input,
-		hasDocsPrice: true,
-	};
+	return { pricing, hasDocsPrice: true };
 };
 
 const parseLegacyLabelRows = (content: string): Partial<DocsPricingMap> => {

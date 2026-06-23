@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { ModelIcon } from "./ModelIcon";
 import { getScaledColor } from "./utils";
+import { formatListPricePer1M } from "./pricing";
 import {
 	CostAggregation,
 	MetricSummary,
@@ -53,7 +54,7 @@ export const ModelBreakdownTable = ({
 						</h2>
 						<p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5 max-w-xl">
 							<strong>Spent</strong> = your actual CSV charges (usage-dependent).
-							<strong className="ml-1">List $/1M</strong> = Cursor docs input rate only — not blended cost.
+							<strong className="ml-1">List $/1M</strong> columns = Cursor catalog rates by token type — not blended cost.
 						</p>
 					</div>
 				</div>
@@ -81,7 +82,7 @@ export const ModelBreakdownTable = ({
 				</div>
 			</div>
 			<div className="w-full overflow-x-auto">
-				<table className="w-full text-left border-collapse min-w-[1000px]">
+				<table className="w-full text-left border-collapse min-w-[1200px]">
 					<thead>
 						<tr className="border-b border-slate-200 dark:border-slate-800">
 							<th className="py-3 px-4 text-slate-500 dark:text-slate-400 font-medium text-xs text-right w-12">
@@ -137,10 +138,28 @@ export const ModelBreakdownTable = ({
 											: `${costAggregation} of per-request Cost from your export.`,
 								},
 								{
-									key: "pricePer1MTokens",
-									label: "List $/1M",
+									key: "listInputPer1M",
+									label: "List input",
 									title:
-										"Cursor docs input price per 1M tokens (catalog rate). Auto is ~$1.25; Composer 2.5 is ~$0.50 — compare Spent and Observed for real spend.",
+										"Cursor docs input price per 1M tokens (catalog rate).",
+								},
+								{
+									key: "listCacheWritePer1M",
+									label: "List cache write",
+									title:
+										"Cursor docs cache-write price per 1M tokens (— when not offered).",
+								},
+								{
+									key: "listCacheReadPer1M",
+									label: "List cache read",
+									title:
+										"Cursor docs cache-read price per 1M tokens (catalog rate).",
+								},
+								{
+									key: "listOutputPer1M",
+									label: "List output",
+									title:
+										"Cursor docs output price per 1M tokens (catalog rate).",
 								},
 								{
 									key: "p50ObservedCostPer1M",
@@ -214,21 +233,36 @@ export const ModelBreakdownTable = ({
 								>
 									${m.costAgg.toFixed(4)}
 								</td>
-								<td
-									className="py-3 px-4 text-sm text-right font-mono"
-									style={{
-										color: m.hasDocsPrice
-											? getScaledColor(
-													"pricePer1MTokens",
-													m.pricePer1MTokens,
-													summaryData
-											  )
-											: "inherit",
-									}}
-									title="Docs input list rate"
-								>
-									{m.hasDocsPrice ? `$${m.pricePer1MTokens.toFixed(2)}` : "N/A"}
-								</td>
+								{(
+									[
+										"listInputPer1M",
+										"listCacheWritePer1M",
+										"listCacheReadPer1M",
+										"listOutputPer1M",
+									] as const
+								).map((listKey) => {
+									const listValue = m[listKey];
+									return (
+										<td
+											key={listKey}
+											className="py-3 px-4 text-sm text-right font-mono"
+											style={{
+												color:
+													m.hasDocsPrice && listValue != null
+														? getScaledColor(
+																listKey,
+																listValue,
+																summaryData
+														  )
+														: "inherit",
+											}}
+										>
+											{m.hasDocsPrice
+												? formatListPricePer1M(listValue)
+												: "N/A"}
+										</td>
+									);
+								})}
 								<td
 									className="py-3 px-4 text-sm text-right font-mono text-slate-700 dark:text-slate-300"
 									style={{

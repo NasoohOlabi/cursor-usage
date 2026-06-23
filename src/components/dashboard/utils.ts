@@ -113,7 +113,10 @@ export const getScaledColor = (
 	// For these metrics, lower is better (green) and higher is worse (red).
 	const lowerIsBetterMetrics = [
 		"cost",
-		"pricePer1MTokens",
+		"listInputPer1M",
+		"listCacheWritePer1M",
+		"listCacheReadPer1M",
+		"listOutputPer1M",
 		"p50ObservedCostPer1M",
 		"avgPromptCost",
 		"costAgg",

@@ -18,6 +18,7 @@ import {
 	MetricSummary,
 	ModelBreakdownRow,
 	ProcessedData,
+	ProviderData,
 	SortConfig,
 } from "../components/dashboard/types";
 import {
@@ -27,10 +28,12 @@ import {
 } from "../components/dashboard/utils";
 import {
 	DEFAULT_DOCS_PRICING,
-	calculateDocsPricePer1M,
 	DocsPricingMap,
 	fetchCursorDocsPricing,
+	flattenListPricing,
 	getTokenTotals,
+	NULL_LIST_PRICING,
+	resolveDocsListPricing,
 } from "../components/dashboard/pricing";
 import {
 	fetchSampleCsv,
@@ -307,17 +310,11 @@ function Dashboard() {
 					sortedObservedCostPer1M,
 					0.9,
 				);
-				const docsPrice = calculateDocsPricePer1M(
-					m.name,
-					{
-						inputWithoutCacheWrite: m.input,
-						inputWithCacheWrite: m.inputWithCacheWrite,
-						cacheRead: m.cacheRead,
-						output: m.output,
-						totalTokens: m.total,
-					},
-					docsPricing
-				);
+				const { pricing, hasDocsPrice: modelHasDocsPrice } =
+					resolveDocsListPricing(m.name, docsPricing);
+				const listPricing = pricing
+					? flattenListPricing(pricing)
+					: NULL_LIST_PRICING;
 				const totalInputTokens = m.input + m.inputWithCacheWrite + m.cacheRead;
 				const cacheHitRate = totalInputTokens > 0 ? (m.cacheRead / totalInputTokens) * 100 : 0;
 				const sparklineData = Object.entries(m.sparklineMap || {})
@@ -326,8 +323,8 @@ function Dashboard() {
 
 				return {
 					...m,
-					pricePer1MTokens: docsPrice.pricePer1M ?? 0,
-					hasDocsPrice: docsPrice.hasDocsPrice && docsPrice.pricePer1M != null,
+					...listPricing,
+					hasDocsPrice: modelHasDocsPrice && !!pricing,
 					avgOutputTokens: m.count > 0 ? m.output / m.count : 0,
 					avgPromptCost: m.count > 0 ? m.cost / m.count : 0,
 					minPromptCost,
@@ -349,7 +346,8 @@ function Dashboard() {
 				if (!model.hasDocsPrice || !model.total) return acc;
 				const provider = getProviderName(model.name || "Unknown");
 				const existing = acc.get(provider) || { weighted: 0, tokens: 0 };
-				existing.weighted += model.pricePer1MTokens * model.total;
+				existing.weighted +=
+					(model.listOutputPer1M ?? 0) * model.total;
 				existing.tokens += model.total;
 				acc.set(provider, existing);
 				return acc;
@@ -570,14 +568,17 @@ function Dashboard() {
 				!!docsPricingTotals && Number(docsPricingTotals.tokens) > 0;
 			return {
 				...p,
-				pricePer1MTokens: hasDocsPrice
-					? Number(docsPricingTotals!.weighted) / Number(docsPricingTotals!.tokens)
-					: 0,
+				...NULL_LIST_PRICING,
+				listOutputPer1M: hasDocsPrice
+					? Number(docsPricingTotals!.weighted) /
+						Number(docsPricingTotals!.tokens)
+					: null,
 				hasDocsPrice,
 				avgOutputTokens: p.count > 0 ? p.output / p.count : 0,
 				avgPromptCost: p.count > 0 ? p.cost / p.count : 0,
 			};
-		}) as any[];
+		})
+			.toSorted((a: ProviderData, b: ProviderData) => b.cost - a.cost) as ProviderData[];
 
 		const timeseriesMeta = [
 			...providerSeries.flatMap((series) => [
@@ -612,24 +613,31 @@ function Dashboard() {
 				: []),
 		];
 
-		let globalTotalTokens = 0;
+		let globalTotalTokensSum = 0;
+		let globalPricedTokens = 0;
 		let globalTotalCost = 0;
 		let globalPricedCost = 0;
 		for (const row of validData) {
 			const tokenTotals = getTokenTotals(row);
 			const rowCost = Number(row.Cost) || 0;
 			globalTotalCost += rowCost;
+			globalTotalTokensSum += tokenTotals.totalTokens;
 			if (tokenTotals.totalTokens > 0) {
-				globalTotalTokens += tokenTotals.totalTokens;
+				globalPricedTokens += tokenTotals.totalTokens;
 				globalPricedCost += rowCost;
 			}
 		}
+		const requestCount = validData.length;
 		const globalUsage = {
-			totalTokens: globalTotalTokens,
+			totalTokensSum: globalTotalTokensSum,
+			totalTokens: globalPricedTokens,
 			totalCost: globalTotalCost,
+			requestCount,
+			averagePromptCost:
+				requestCount > 0 ? globalTotalCost / requestCount : 0,
 			averagePricePer1MTokens:
-				globalTotalTokens > 0
-					? (globalPricedCost / globalTotalTokens) * 1_000_000
+				globalPricedTokens > 0
+					? (globalPricedCost / globalPricedTokens) * 1_000_000
 					: 0,
 		};
 
@@ -681,12 +689,16 @@ function Dashboard() {
 		if (!sortConfig.key || !sortConfig.direction) return modelBreakdownData;
 		const directionFactor = sortConfig.direction === "asc" ? 1 : -1;
 		const sortKey = sortConfig.key as keyof ModelBreakdownRow;
+		const sortNumeric = (value: unknown) => {
+			if (typeof value === "number" && Number.isFinite(value)) return value;
+			return sortConfig.direction === "asc" ? Infinity : -Infinity;
+		};
 		return [...modelBreakdownData].sort((a, b) => {
 			if (sortConfig.key === "name") {
 				return a.name.localeCompare(b.name) * directionFactor;
 			}
-			const aValue = a[sortKey] ?? 0;
-			const bValue = b[sortKey] ?? 0;
+			const aValue = sortNumeric(a[sortKey]);
+			const bValue = sortNumeric(b[sortKey]);
 			if (aValue < bValue) return -1 * directionFactor;
 			if (aValue > bValue) return 1 * directionFactor;
 			return 0;
@@ -712,11 +724,32 @@ function Dashboard() {
 						: `${costAggregation} of per-request Cost from your export.`,
 			},
 			{
-				key: "pricePer1MTokens",
-				label: "List $/1M (input)",
+				key: "listInputPer1M",
+				label: "List input $/1M",
 				unit: "$",
 				format: (v: number) => `$${v.toFixed(2)}`,
-				hint: "Cursor docs input catalog rate — not your blended spend.",
+				hint: "Cursor docs input catalog rate per 1M tokens.",
+			},
+			{
+				key: "listCacheWritePer1M",
+				label: "List cache write $/1M",
+				unit: "$",
+				format: (v: number) => `$${v.toFixed(2)}`,
+				hint: "Cursor docs cache-write rate (Claude models only).",
+			},
+			{
+				key: "listCacheReadPer1M",
+				label: "List cache read $/1M",
+				unit: "$",
+				format: (v: number) => `$${v.toFixed(2)}`,
+				hint: "Cursor docs cache-read rate per 1M tokens.",
+			},
+			{
+				key: "listOutputPer1M",
+				label: "List output $/1M",
+				unit: "$",
+				format: (v: number) => `$${v.toFixed(2)}`,
+				hint: "Cursor docs output catalog rate per 1M tokens.",
 			},
 			{
 				key: "p50ObservedCostPer1M",
@@ -753,11 +786,21 @@ function Dashboard() {
 			},
 		];
 
+		const listPriceKeys = new Set([
+			"listInputPer1M",
+			"listCacheWritePer1M",
+			"listCacheReadPer1M",
+			"listOutputPer1M",
+		]);
 		return metrics
 			.map((metric) => {
 				const values =
-					metric.key === "pricePer1MTokens"
-						? modelBreakdownData.filter((row) => row.hasDocsPrice)
+					listPriceKeys.has(metric.key)
+						? modelBreakdownData.filter(
+								(row) =>
+									row.hasDocsPrice &&
+									row[metric.key] != null
+							)
 						: metric.key === "p50ObservedCostPer1M"
 							? modelBreakdownData.filter((row) => row.p50ObservedCostPer1M > 0)
 							: modelBreakdownData;
@@ -781,11 +824,11 @@ function Dashboard() {
 				hint: "Sum of CSV Cost per model in the filtered range.",
 			},
 			{
-				key: "pricePer1MTokens",
-				label: "Price/1M Tokens",
+				key: "listOutputPer1M",
+				label: "List output $/1M",
 				unit: "$",
 				format: (v: number) => `$${v.toFixed(2)}`,
-				hint: "Cursor docs input $/1M (fast tiers like Composer 2.5-fast are priced higher).",
+				hint: "Cursor docs output catalog rate per 1M tokens.",
 			},
 			{
 				key: "avgOutputTokens",
@@ -827,8 +870,10 @@ function Dashboard() {
 		return metrics
 			.map((metric) => {
 				const values =
-					metric.key === "pricePer1MTokens"
-						? processedData.modelData.filter((row) => row.hasDocsPrice)
+					metric.key === "listOutputPer1M"
+						? processedData.modelData.filter(
+								(row) => row.hasDocsPrice && row.listOutputPer1M != null
+							)
 						: processedData.modelData;
 				const extents = summarizeMetricExtents(values, metric.key);
 				if (!extents) return null;

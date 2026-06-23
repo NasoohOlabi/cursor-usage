@@ -16,9 +16,7 @@ export const ProviderComparison = ({ providerData }: ProviderComparisonProps) =>
 				<h2 className="text-sm font-bold text-slate-900 dark:text-white">Provider Comparison</h2>
 			</div>
 			<div className="flex flex-col gap-2 sm:flex-row sm:flex-nowrap sm:overflow-x-auto sm:gap-2 sm:pb-0.5 [scrollbar-gutter:stable]">
-				{[...providerData]
-					.toSorted((a, b) => b.cost - a.cost)
-					.map((p) => (
+				{providerData.map((p) => (
 						<div
 							key={p.name}
 							className="w-full shrink-0 sm:min-w-0 sm:flex-1 sm:basis-0 bg-white/70 dark:bg-slate-900/50 border border-slate-200/90 dark:border-slate-800 rounded-xl p-2.5 sm:p-3 hover:border-slate-300 dark:hover:border-slate-700 transition-all group relative overflow-hidden shadow-sm dark:shadow-none"
@@ -52,11 +50,16 @@ export const ProviderComparison = ({ providerData }: ProviderComparisonProps) =>
 									</p>
 								</div>
 								<div>
-									<p className="text-slate-500 dark:text-slate-500 text-[9px] font-medium uppercase tracking-wider mb-px">
-										Avg Price/1M
+									<p
+										className="text-slate-500 dark:text-slate-500 text-[9px] font-medium uppercase tracking-wider mb-px"
+										title="Token-weighted output list rate; see model breakdown for all rates"
+									>
+										List output $/1M
 									</p>
 									<p className="text-xs font-semibold text-slate-700 dark:text-slate-300 font-mono">
-										{p.hasDocsPrice ? `$${p.pricePer1MTokens.toFixed(2)}` : "N/A"}
+										{p.hasDocsPrice && p.listOutputPer1M != null
+											? `$${p.listOutputPer1M.toFixed(2)}`
+											: "N/A"}
 									</p>
 								</div>
 								<div>

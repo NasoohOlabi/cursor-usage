@@ -5,7 +5,10 @@ export interface ModelData {
 	total: number;
 	cost: number;
 	count: number;
-	pricePer1MTokens: number;
+	listInputPer1M: number | null;
+	listCacheWritePer1M: number | null;
+	listCacheReadPer1M: number | null;
+	listOutputPer1M: number | null;
 	hasDocsPrice: boolean;
 	avgOutputTokens: number;
 	avgPromptCost: number;
@@ -28,7 +31,10 @@ export interface ProviderData {
 	total: number;
 	cost: number;
 	count: number;
-	pricePer1MTokens: number;
+	listInputPer1M: number | null;
+	listCacheWritePer1M: number | null;
+	listCacheReadPer1M: number | null;
+	listOutputPer1M: number | null;
 	hasDocsPrice: boolean;
 	avgOutputTokens: number;
 	avgPromptCost: number;
@@ -72,9 +78,15 @@ export interface ModelTimeseriesSeries {
 
 /** Blended average: sum(metered cost) / sum(tokens) for rows with tokens > 0. */
 export interface GlobalUsageTotals {
+	/** Sum of CSV Total Tokens across all filtered rows. */
+	totalTokensSum: number;
+	/** Tokens from rows with Total Tokens > 0 (for $/1M blend). */
 	totalTokens: number;
 	totalCost: number;
-	/** (totalCost / totalTokens) * 1e6 when totalTokens > 0 */
+	requestCount: number;
+	/** Mean cost per request (totalCost ÷ requestCount). */
+	averagePromptCost: number;
+	/** (priced cost / totalTokens) * 1e6 when totalTokens > 0 */
 	averagePricePer1MTokens: number;
 }
 
