@@ -1,5 +1,6 @@
 import {
 	Activity,
+	DollarSign,
 	Settings,
 	Upload,
 	CheckCircle2,
@@ -7,6 +8,7 @@ import {
 	RefreshCw,
 	Sparkles,
 	Coins,
+	Cpu,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useTheme } from "../ThemeContext";
@@ -35,8 +37,8 @@ export const DashboardHeader = ({
 	selectedModelsCount,
 	globalUsage,
 }: DashboardHeaderProps) => {
-	const showAvgTokenPrice =
-		globalUsage != null && globalUsage.totalTokens > 0;
+	const showGlobalStats = globalUsage != null && globalUsage.requestCount > 0;
+	const showAvgTokenPrice = showGlobalStats && globalUsage.totalTokens > 0;
 	const { isDark } = useTheme();
 	const [showPriceSyncBurst, setShowPriceSyncBurst] = useState(false);
 
@@ -63,10 +65,56 @@ export const DashboardHeader = ({
 			</div>
 
 			<div className="ml-auto flex flex-wrap md:flex-nowrap items-center justify-end gap-2">
+				{showGlobalStats && (
+					<>
+						<div
+							className="flex items-center gap-2 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm dark:shadow-none"
+							title="Sum of CSV Cost in the filtered export"
+						>
+							<DollarSign className="w-4 h-4 text-emerald-500 dark:text-emerald-400 shrink-0" />
+							<div className="flex flex-col min-w-0">
+								<span className="text-[10px] text-slate-500 dark:text-slate-500 font-medium uppercase tracking-wider leading-none">
+									Total spending
+								</span>
+								<span className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-300 tabular-nums leading-tight">
+									${globalUsage.totalCost.toFixed(4)}
+								</span>
+							</div>
+						</div>
+						<div
+							className="flex items-center gap-2 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm dark:shadow-none"
+							title="Sum of CSV Total Tokens in the filtered export"
+						>
+							<Cpu className="w-4 h-4 text-cyan-500 dark:text-cyan-400 shrink-0" />
+							<div className="flex flex-col min-w-0">
+								<span className="text-[10px] text-slate-500 dark:text-slate-500 font-medium uppercase tracking-wider leading-none">
+									Total tokens
+								</span>
+								<span className="text-sm font-bold font-mono text-cyan-600 dark:text-cyan-300 tabular-nums leading-tight">
+									{globalUsage.totalTokensSum.toLocaleString()}
+								</span>
+							</div>
+						</div>
+						<div
+							className="flex items-center gap-2 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm dark:shadow-none"
+							title={`$${globalUsage.totalCost.toFixed(4)} ÷ ${globalUsage.requestCount.toLocaleString()} requests`}
+						>
+							<Coins className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
+							<div className="flex flex-col min-w-0">
+								<span className="text-[10px] text-slate-500 dark:text-slate-500 font-medium uppercase tracking-wider leading-none">
+									Avg prompt cost
+								</span>
+								<span className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-300 tabular-nums leading-tight">
+									${globalUsage.averagePromptCost.toFixed(4)}
+								</span>
+							</div>
+						</div>
+					</>
+				)}
 				{showAvgTokenPrice && (
 					<div
 						className="flex items-center gap-2 bg-white/80 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-700 rounded-lg px-3 py-1.5 shadow-sm dark:shadow-none"
-						title={`$${globalUsage.totalCost.toFixed(2)} ÷ ${globalUsage.totalTokens.toLocaleString()} tokens`}
+						title={`$${globalUsage.totalCost.toFixed(2)} ÷ ${globalUsage.totalTokens.toLocaleString()} tokens (rows with tokens > 0)`}
 					>
 						<Coins className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
 						<div className="flex flex-col min-w-0">
