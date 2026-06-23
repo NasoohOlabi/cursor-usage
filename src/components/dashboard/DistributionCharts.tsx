@@ -7,6 +7,7 @@ import {
 	Cell,
 	Tooltip,
 	Legend,
+	type PieLabelRenderProps,
 } from "recharts";
 import { useTheme } from "../ThemeContext";
 import { ClientChartMount } from "./ClientChartMount";
@@ -18,6 +19,64 @@ interface DistributionChartsProps {
 	providerData: ProviderData[];
 	usageByKind: UsageByKind[];
 }
+
+const RADIAN = Math.PI / 180;
+/** Hide labels on hairline slices where text would overlap. */
+const MIN_SLICE_PERCENT = 0.035;
+
+function pieSliceLabel(format: (value: number, percent: number) => string) {
+	return (props: PieLabelRenderProps) => {
+		const { cx, cy, midAngle, innerRadius, outerRadius, percent, value } =
+			props;
+		if (percent == null || percent < MIN_SLICE_PERCENT || midAngle == null)
+			return null;
+
+		const inner = Number(innerRadius) || 0;
+		const outer = Number(outerRadius) || 0;
+		const radius = inner + (outer - inner) * 0.55;
+		const x = Number(cx) + radius * Math.cos(-midAngle * RADIAN);
+		const y = Number(cy) + radius * Math.sin(-midAngle * RADIAN);
+
+		return (
+			<text
+				x={x}
+				y={y}
+				fill="#fff"
+				textAnchor="middle"
+				dominantBaseline="central"
+				fontSize={10}
+				fontWeight={600}
+				style={{
+					pointerEvents: "none",
+					textShadow: "0 0 3px rgba(0,0,0,0.7)",
+				}}
+			>
+				{format(Number(value) || 0, percent)}
+			</text>
+		);
+	};
+}
+
+const formatPercentLabel = (_value: number, percent: number) =>
+	`${(percent * 100).toFixed(1)}%`;
+
+const formatCostSliceLabel = (value: number, percent: number) => {
+	if (value >= 1) return `$${value.toFixed(2)}`;
+	if (value >= 0.01) return `$${value.toFixed(3)}`;
+	if (value >= 0.0001) return `$${value.toFixed(4)}`;
+	return formatPercentLabel(value, percent);
+};
+
+const formatCountSliceLabel = (value: number, percent: number) => {
+	if (value >= 1_000_000) {
+		return `${(value / 1_000_000).toFixed(1).replace(/\.0$/, "")}M`;
+	}
+	if (value >= 1_000) {
+		return `${(value / 1_000).toFixed(1).replace(/\.0$/, "")}k`;
+	}
+	if (value >= 100) return value.toLocaleString();
+	return formatPercentLabel(value, percent);
+};
 
 export const DistributionCharts = ({
 	providerData,
@@ -62,6 +121,8 @@ export const DistributionCharts = ({
 									outerRadius={72}
 									paddingAngle={2}
 									stroke="none"
+									label={pieSliceLabel(formatCostSliceLabel)}
+									labelLine={false}
 								>
 									{providerData.map((p, index) => (
 										<Cell key={p.name} fill={COLORS[index % COLORS.length]} />
@@ -117,6 +178,8 @@ export const DistributionCharts = ({
 									outerRadius={72}
 									paddingAngle={2}
 									stroke="none"
+									label={pieSliceLabel(formatCountSliceLabel)}
+									labelLine={false}
 								>
 									{providerData.map((p, index) => (
 										<Cell key={p.name} fill={COLORS[index % COLORS.length]} />
@@ -174,6 +237,8 @@ export const DistributionCharts = ({
 									outerRadius={72}
 									paddingAngle={2}
 									stroke="none"
+									label={pieSliceLabel(formatCountSliceLabel)}
+									labelLine={false}
 								>
 									{usageByKind.map((k, index) => (
 										<Cell key={k.name} fill={COLORS[index % COLORS.length]} />
